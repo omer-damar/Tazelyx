@@ -33,7 +33,9 @@ export default function RunningLowScreen() {
       try {
         const { products: fetched } = await getRunningLowProducts(token);
         setProducts(fetched);
-        syncRunningLowNotifications(fetched);
+        syncRunningLowNotifications(fetched).catch((error) =>
+          console.warn("Tükenmek üzere bildirimleri senkronize edilemedi:", error)
+        );
       } catch (error) {
         setErrorMessage(
           error instanceof ApiError ? error.message : "Tahminler yüklenirken bir hata oluştu."

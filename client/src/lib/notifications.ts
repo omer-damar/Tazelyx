@@ -100,8 +100,6 @@ export async function syncExpiryNotifications(products: Product[]) {
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== "granted") return;
 
-  await cancelNotificationsByType("expiry");
-
   const now = Date.now();
 
   const prioritizedProducts = products
@@ -138,6 +136,12 @@ export async function syncExpiryNotifications(products: Product[]) {
       scheduledCount += 1;
     }
   }
+
+  // Eski bildirimler YENİLERİ başarıyla kurulduktan SONRA iptal edilir —
+  // sıra tersine çevrilip kurma adımı yarıda bir hataya çarparsa (bu
+  // fonksiyon `await` edilmeden çağrıldığı yerlerde hata sessizce
+  // yutulabiliyordu), kullanıcı elinde hiç bildirim kalmadan kalmasın diye.
+  await cancelNotificationsByType("expiry");
 }
 
 // Backend'in `predictRunningLow`'u (bkz. receipt-ai/services/
@@ -154,9 +158,10 @@ export async function syncRunningLowNotifications(products: RunningLowProduct[])
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== "granted") return;
 
-  await cancelNotificationsByType("running-low");
-
-  if (products.length === 0) return;
+  if (products.length === 0) {
+    await cancelNotificationsByType("running-low");
+    return;
+  }
 
   const now = new Date();
   const todayEvening = new Date(now);
@@ -172,14 +177,25 @@ export async function syncRunningLowNotifications(products: RunningLowProduct[])
           return tomorrowMorning;
         })();
 
-  for (const product of products) {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Tazelyx",
-        body: `${capitalize(product.name)} ürününüz yakında tükenebilir — almayı unutmayın!`,
-        data: { type: "running-low" },
-      },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
-    });
-  }
+  // Önce YENİ bildirimleri kuruyoruz, eskilerini ancak bu başarıyla
+  // bittikten SONRA iptal ediyoruz. Sıra ters olsaydı (önce iptal, sonra
+  // kur) ve kurma adımı yarıda bir hataya çarpsaydı — ki bu fonksiyon
+  // çağrıldığı yerlerde `await` edilmediği için hata sessizce
+  // yutulabiliyordu — kullanıcı elinde hiç bildirim kalmadan kalırdı.
+  // Gerçek bir kullanıcı senaryosunda tam olarak bu yaşandı: 18:00 için
+  // kurulmuş bir bildirim, sonraki bir senkronda sessizce kayboldu.
+  await Promise.all(
+    products.map((product) =>
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Tazelyx",
+          body: `${capitalize(product.name)} ürününüz yakında tükenebilir — almayı unutmayın!`,
+          data: { type: "running-low" },
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
+      })
+    )
+  );
+
+  await cancelNotificationsByType("running-low");
 }

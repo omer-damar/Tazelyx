@@ -91,7 +91,9 @@ export default function DashboardScreen() {
       // verisini/hata mesajını etkilemez.
       try {
         const { products: runningLow } = await getRunningLowProducts(token);
-        syncRunningLowNotifications(runningLow);
+        syncRunningLowNotifications(runningLow).catch((error) =>
+          console.warn("Tükenmek üzere bildirimleri senkronize edilemedi:", error)
+        );
       } catch {
         // Sessizce yut — bildirim senkronu, ekranın asıl işlevi değil.
       }
