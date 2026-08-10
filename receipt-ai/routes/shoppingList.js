@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const ShoppingList = require("../models/ShoppingList");
+const { safeErrorDetail } = require("../utils/errorResponse");
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ router.get("/", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Alışveriş listesi getirilirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -72,7 +73,7 @@ router.post("/", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Ürün eklenirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -111,7 +112,7 @@ router.patch("/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Kalem güncellenirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -137,7 +138,7 @@ router.delete("/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Kalem silinirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });

@@ -2,6 +2,7 @@ const express = require("express");
 const Product = require("../models/Product");
 const { startOfToday } = require("../services/shelfLife");
 const { predictRunningLow } = require("../services/consumptionPrediction");
+const { safeErrorDetail } = require("../utils/errorResponse");
 const config = require("../config");
 
 const router = express.Router();
@@ -52,7 +53,7 @@ router.get("/summary", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Dashboard verisi alınamadı",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });

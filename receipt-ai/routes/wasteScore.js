@@ -1,5 +1,6 @@
 const express = require("express");
 const { computeWasteScore, isValidRange } = require("../services/wasteScore");
+const { safeErrorDetail } = require("../utils/errorResponse");
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ router.get("/", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "İsraf skoru hesaplanırken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });

@@ -1,8 +1,10 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const User = require("../models/User");
 const Product = require("../models/Product");
 const ConsumptionLog = require("../models/ConsumptionLog");
 const UploadedReceipt = require("../models/UploadedReceipt");
+const ShoppingList = require("../models/ShoppingList");
 const {
   hashPassword,
   comparePassword,
@@ -13,13 +15,28 @@ const {
 const { sendVerificationEmail, sendPasswordResetEmail } = require("../services/email");
 const { renderBrandedPage } = require("../services/htmlPage");
 const { requireAuth } = require("../middleware/auth");
+const { safeErrorDetail } = require("../utils/errorResponse");
 const config = require("../config");
 
 const router = express.Router();
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-router.post("/register", async (req, res) => {
+// Kimliksiz istemcilerin sınırsız deneme yapabildiği uç noktalar için ortak
+// sınırlayıcı: kaba kuvvet (login) ve e-posta gönderim kotasını tüketme
+// (forgot-password/resend-verification, ikisi de her istekte gerçek bir
+// e-posta gönderiyor) saldırılarına karşı. IP başına 15 dakikada 10 istek —
+// meşru bir kullanıcının birkaç yanlış denemesini engellemeyecek kadar
+// gevşek, otomatikleştirilmiş bir denemeyi engelleyecek kadar sıkı.
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Çok fazla deneme yapıldı. Lütfen bir süre sonra tekrar dene." },
+});
+
+router.post("/register", authRateLimiter, async (req, res) => {
   try {
     const { email, password, name } = req.body;
 
@@ -65,7 +82,7 @@ router.post("/register", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Kayıt sırasında hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -119,7 +136,7 @@ router.get("/verify-email", async (req, res) => {
   }
 });
 
-router.post("/resend-verification", async (req, res) => {
+router.post("/resend-verification", authRateLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -146,12 +163,12 @@ router.post("/resend-verification", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Onay e-postası gönderilirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", authRateLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -193,12 +210,12 @@ router.post("/login", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Giriş sırasında hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
 
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password", authRateLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -227,7 +244,7 @@ router.post("/forgot-password", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Şifre sıfırlama isteği sırasında hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -285,7 +302,7 @@ router.post("/reset-password", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Şifre sıfırlama sırasında hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -304,6 +321,7 @@ router.delete("/account", requireAuth, async (req, res) => {
       Product.deleteMany({ userId }),
       ConsumptionLog.deleteMany({ userId }),
       UploadedReceipt.deleteMany({ userId }),
+      ShoppingList.deleteMany({ userId }),
     ]);
 
     const deletedUser = await User.findByIdAndDelete(userId);
@@ -316,7 +334,7 @@ router.delete("/account", requireAuth, async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Hesap silinirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });

@@ -3,6 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   SectionList,
   Text,
@@ -38,6 +39,7 @@ export default function ShoppingListScreen() {
 
   const load = useCallback(async () => {
     if (!token) return;
+    setErrorMessage(null);
     try {
       const { items: fetched } = await getShoppingList(token);
       setItems(fetched);
@@ -93,8 +95,13 @@ export default function ShoppingListScreen() {
       setNewItemName("");
       setNewItemQuantity("");
       setNewItemUnit(null);
-    } catch {
-      // Sessizce yut — kullanıcı girdiği bilgileri kaybetmez, tekrar "Ekle"ye basabilir.
+    } catch (error) {
+      // Kullanıcının girdiği bilgileri temizlemiyoruz ki tekrar "Ekle"ye
+      // basabilsin — ama en azından neden hiçbir şey olmadığını söylüyoruz.
+      Alert.alert(
+        "Eklenemedi",
+        error instanceof ApiError ? error.message : "Ürün listeye eklenirken bir hata oluştu."
+      );
     } finally {
       setIsAdding(false);
     }
@@ -194,8 +201,11 @@ export default function ShoppingListScreen() {
           </View>
         ) : null
       ) : errorMessage ? (
-        <View className="flex-1 items-center justify-center px-6">
+        <View className="flex-1 items-center justify-center gap-3 px-6">
           <Text className="text-slate-500 dark:text-slate-400 text-center">{errorMessage}</Text>
+          <Pressable onPress={() => load()} className="active:opacity-70">
+            <Text className="text-brand-green font-semibold">Tekrar dene</Text>
+          </Pressable>
         </View>
       ) : (
         <SectionList

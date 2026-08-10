@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
@@ -60,8 +60,13 @@ export default function RunningLowScreen() {
         source: "prediction",
       });
       setProducts((current) => current.filter((p) => p.productId !== product.productId));
-    } catch {
-      // Sessizce yut — kullanıcı "Ekle"ye tekrar dokunup deneyebilir.
+    } catch (error) {
+      Alert.alert(
+        "Eklenemedi",
+        error instanceof ApiError
+          ? error.message
+          : `"${product.name}" alışveriş listesine eklenirken bir hata oluştu.`
+      );
     } finally {
       setAddingId(null);
     }

@@ -16,11 +16,12 @@ function comparePassword(plainPassword, passwordHash) {
 function signToken(userId) {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
+    algorithm: "HS256",
   });
 }
 
 function verifyToken(token) {
-  return jwt.verify(token, process.env.JWT_SECRET);
+  return jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
 }
 
 // E-posta onayı ve şifre sıfırlama bağlantıları için: e-postada giden ham

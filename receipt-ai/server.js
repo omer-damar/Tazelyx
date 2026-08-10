@@ -14,6 +14,21 @@ const wasteScoreRoute = require("./routes/wasteScore");
 const shoppingListRoute = require("./routes/shoppingList");
 const predictionsRoute = require("./routes/predictions");
 const { requireAuth } = require("./middleware/auth");
+const { safeErrorDetail } = require("./utils/errorResponse");
+
+// JWT_SECRET eksikse sunucu yine de ayağa kalkıp ilk girişte 500 verirdi;
+// bunun yerine boot anında net bir hatayla durduruyoruz. .env.example'daki
+// placeholder değer de reddediliyor — aksi halde onu değiştirmeyi unutan
+// her deploy, herkesçe bilinen aynı imzalama anahtarını paylaşır ve JWT
+// sahteciliğine açık kalır.
+const jwtSecret = process.env.JWT_SECRET || "";
+if (jwtSecret.length < 32 || jwtSecret === "change-this-to-a-long-random-string") {
+  console.error(
+    "JWT_SECRET tanımlı değil, çok kısa (en az 32 karakter gerekli) veya .env.example'daki " +
+      "placeholder değerde bırakılmış. .env dosyasında uzun, rastgele bir değerle ayarlanmalı."
+  );
+  process.exit(1);
+}
 
 const app = express();
 
@@ -75,10 +90,9 @@ app.use((req, res) => {
 // Route içindeki try/catch bloklarından kaçan veya senkron olmayan
 // beklenmeyen hatalar buraya düşer ve tutarlı bir JSON formatında döner.
 app.use((err, req, res, next) => {
-  console.error("Beklenmeyen hata:", err);
   res.status(err.status || 500).json({
     message: "Sunucuda beklenmeyen bir hata oluştu.",
-    error: err.message,
+    error: safeErrorDetail(err),
   });
 });
 

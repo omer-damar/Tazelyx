@@ -79,6 +79,21 @@ const REMINDER_STEPS: { daysBefore: number; body: (name: string) => string }[] =
 // Kiler yüklemesinde tam senkronizasyon yapmak daha az hataya açıktır.
 // İptal işlemi yalnızca "expiry" türünü hedeflediği için diğer bildirim
 // türlerini silme riski yoktur.
+// iOS, bekleyen yerel bildirim sayısını 64 ile sınırlıyor — bu sınırın
+// üzerine çıkıldığında fazlalık bildirimler hiçbir hata vermeden sessizce
+// kurulmuyor. Ürün başına 4 bildirim (T-3/T-2/T-1/T-0) kurulduğu için ~16
+// ürün civarında bu sınıra ulaşılabiliyor, ki bu normal bir kiler boyutu.
+// Bu yüzden en yakında bozulacak ürünlere öncelik veriyoruz: sınıra
+// ulaşınca kurmayı durduruyoruz, zaten daha uzak tarihli ürünlerin
+// hatırlatması daha az acildir.
+const MAX_EXPIRY_NOTIFICATIONS = 48;
+
+function hasEffectiveExpireDate(
+  product: Product
+): product is Product & { effectiveExpireDate: string } {
+  return product.quantity > 0 && !!product.effectiveExpireDate;
+}
+
 export async function syncExpiryNotifications(products: Product[]) {
   await ensurePermission();
 
@@ -89,12 +104,23 @@ export async function syncExpiryNotifications(products: Product[]) {
 
   const now = Date.now();
 
-  for (const product of products) {
-    if (product.quantity <= 0 || !product.effectiveExpireDate) continue;
+  const prioritizedProducts = products
+    .filter(hasEffectiveExpireDate)
+    .sort(
+      (a, b) =>
+        new Date(a.effectiveExpireDate).getTime() - new Date(b.effectiveExpireDate).getTime()
+    );
+
+  let scheduledCount = 0;
+
+  for (const product of prioritizedProducts) {
+    if (scheduledCount >= MAX_EXPIRY_NOTIFICATIONS) break;
 
     const expireDate = new Date(product.effectiveExpireDate);
 
     for (const step of REMINDER_STEPS) {
+      if (scheduledCount >= MAX_EXPIRY_NOTIFICATIONS) break;
+
       const triggerDate = new Date(expireDate);
       triggerDate.setDate(triggerDate.getDate() - step.daysBefore);
       triggerDate.setHours(9, 0, 0, 0);
@@ -109,6 +135,7 @@ export async function syncExpiryNotifications(products: Product[]) {
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
       });
+      scheduledCount += 1;
     }
   }
 }

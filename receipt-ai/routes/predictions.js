@@ -1,5 +1,6 @@
 const express = require("express");
 const { predictRunningLow } = require("../services/consumptionPrediction");
+const { safeErrorDetail } = require("../utils/errorResponse");
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.get("/running-low", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Tüketim tahmini hesaplanırken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });

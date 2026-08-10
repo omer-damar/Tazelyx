@@ -9,6 +9,7 @@ const { parseReceiptWithAi } = require("../services/receiptAi");
 const UploadedReceipt = require("../models/UploadedReceipt");
 const { cleanDisplayName } = require("../services/shelfLife");
 const { normalizeUnit } = require("../services/productValidation");
+const { safeErrorDetail } = require("../utils/errorResponse");
 const config = require("../config");
 
 const router = express.Router();
@@ -49,7 +50,7 @@ router.post("/upload", (req, res) => {
     if (err) {
       return res.status(400).json({
         message: "Dosya yükleme hatası",
-        error: err.message,
+        error: safeErrorDetail(err),
       });
     }
 
@@ -72,7 +73,6 @@ router.post("/upload", (req, res) => {
       });
 
       if (existingUpload) {
-        fs.unlinkSync(req.file.path);
         return res.status(409).json({
           message: "Bu fiş daha önce yüklenmiş (aynı dosya tespit edildi).",
           uploadedAt: existingUpload.createdAt,
@@ -144,8 +144,13 @@ router.post("/upload", (req, res) => {
 
       res.status(500).json({
         message: "OCR işlemi başarısız",
-        error: ocrError.message,
+        error: safeErrorDetail(ocrError),
       });
+    } finally {
+      // Yüklenen dosyanın tek amacı OCR'a verilmekti; sonuç ne olursa olsun
+      // diskte tutulmasına gerek yok — aksi halde uploads/ zamanla sınırsız
+      // büyür (hiçbir şey onu temizlemiyordu).
+      fs.unlink(req.file.path, () => {});
     }
   });
 });
@@ -166,7 +171,7 @@ router.get("/upload/history", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Fiş geçmişi getirilirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
