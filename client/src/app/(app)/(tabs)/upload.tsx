@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -371,7 +372,11 @@ export default function UploadReceiptScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={!!editingItem} transparent animationType="fade">
+      <Modal
+        visible={!!editingItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDatePickerForId(null)}>
         <View className="flex-1 justify-end bg-black/40">
           <View className="bg-white dark:bg-[#151F2E] rounded-t-3xl px-4 pt-2 pb-8">
             <View className="items-center py-2">
@@ -402,8 +407,14 @@ export default function UploadReceiptScreen() {
         </View>
       </Modal>
 
-      <Modal visible={isAddingManualItem} transparent animationType="fade">
-        <View className="flex-1 justify-end bg-black/40">
+      <Modal
+        visible={isAddingManualItem}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsAddingManualItem(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1 justify-end bg-black/40">
           <View className="bg-white dark:bg-[#151F2E] rounded-t-3xl px-4 pt-2 pb-8">
             <View className="items-center py-2">
               <View className="w-10 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
@@ -468,7 +479,7 @@ export default function UploadReceiptScreen() {
               <Text className="text-slate-500 dark:text-slate-400">Vazgeç</Text>
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
       </SafeAreaView>
     </>

@@ -1,5 +1,6 @@
 const express = require("express");
 const ConsumptionLog = require("../models/ConsumptionLog");
+const { safeErrorDetail } = require("../utils/errorResponse");
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ router.get("/", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Tüketim kayıtları getirilirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });

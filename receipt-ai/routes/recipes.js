@@ -7,6 +7,7 @@ const {
 } = require("../services/recipeAi");
 const { getUsableForRecipeProducts } = require("../services/productQueries");
 const { findRelatedRealRecipe } = require("../services/recipeSearch");
+const { safeErrorDetail } = require("../utils/errorResponse");
 
 const router = express.Router();
 
@@ -160,7 +161,7 @@ router.get("/suggest", async (req, res) => {
 
     res.status(500).json({
       message: "AI tarif önerisi oluşturulurken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });

@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -121,6 +122,14 @@ export default function PantryScreen() {
     reason: "consumed" | "expired";
   } | null>(null);
   const pendingDeleteTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // loadProducts, bekleyen bir silme varken sunucudan taze veri çekip
+  // üzerine yazabiliyor — bu ref, o anki bekleyen silmenin hangi ürünü
+  // kapsadığını (state'e bağımlı kalmadan, closure'ı bayatlatmadan) taze
+  // tutuyor, böylece fetch sonucu bu ürünü sessizce dışarıda bırakabiliyor.
+  const pendingDeleteRef = useRef<typeof pendingDelete>(null);
+  useEffect(() => {
+    pendingDeleteRef.current = pendingDelete;
+  }, [pendingDelete]);
 
   const loadProducts = useCallback(
     async (options: { silent?: boolean } = {}) => {
@@ -129,7 +138,8 @@ export default function PantryScreen() {
       setErrorMessage(null);
       try {
         const { products: fetched } = await getProducts(token);
-        setProducts(fetched);
+        const pendingId = pendingDeleteRef.current?.product._id;
+        setProducts(pendingId ? fetched.filter((p) => p._id !== pendingId) : fetched);
         syncExpiryNotifications(fetched).catch((error) =>
           console.warn("Bildirimler senkronize edilemedi:", error)
         );
@@ -148,6 +158,22 @@ export default function PantryScreen() {
   useFocusEffect(
     useCallback(() => {
       loadProducts({ silent: products.length > 0 });
+
+      // Ekran odağını kaybederken (ör. başka bir sekmeye geçilirken) bekleyen
+      // bir silme varsa hemen commit ediyoruz. Aksi halde: kullanıcı kaydırıp
+      // sekme değiştirirse, geri döndüğünde loadProducts sunucudan (henüz
+      // silinmemiş) eski listeyi çeker ve "silinen" ürün geri gelirmiş gibi
+      // görünürdü; sonra zamanlayıcı dolunca sunucu asıl silmeyi yapardı ve
+      // ürün açıklamasız şekilde kaybolurdu.
+      return () => {
+        const pending = pendingDeleteRef.current;
+        if (pending) {
+          if (pendingDeleteTimeout.current) clearTimeout(pendingDeleteTimeout.current);
+          pendingDeleteTimeout.current = null;
+          commitPendingDelete(pending.product, pending.reason);
+          setPendingDelete(null);
+        }
+      };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadProducts])
   );
@@ -166,10 +192,14 @@ export default function PantryScreen() {
     deleteProduct(token, product._id, reason)
       .then(() => refreshWasteScore())
       .catch((error) => {
-        // Silme backend'de başarısız olursa ürünü sessizce geri getiriyoruz —
-        // kullanıcı zaten "silindi" bildirimini görmüştü, tekrar denemesi için
-        // listeye geri koymak en doğrusu.
+        // Silme backend'de başarısız olursa ürünü geri getiriyoruz VE bunu
+        // kullanıcıya açıkça bildiriyoruz — sessiz kalırsa, ürün dakikalar
+        // sonra listede açıklamasızca "geri gelmiş" gibi görünürdü.
         setProducts((current) => [product, ...current]);
+        Alert.alert(
+          "İşlem başarısız",
+          `"${product.name}" silinemedi, tekrar deneyebilirsin.`
+        );
         console.warn(
           "Ürün silinemedi:",
           error instanceof ApiError ? error.message : error

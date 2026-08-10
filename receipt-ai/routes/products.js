@@ -14,7 +14,17 @@ const {
 } = require("../services/productQueries");
 const { logConsumption } = require("../services/consumptionLog");
 const { normalizeUnit, isValidUnit } = require("../services/productValidation");
+const { safeErrorDetail } = require("../utils/errorResponse");
 const config = require("../config");
+
+// Fiş inceleme ekranından tek istekte onaylanabilecek azami ürün sayısı.
+// Bu olmadan her ürün adı raf-ömrü tahmini için (tabloda yoksa) bir AI
+// çağrısı tetikleyebiliyor — sınırsız bir dizi, sınırsız eşzamanlı LLM
+// isteği (ve faturalandırma) anlamına gelirdi.
+const MAX_BULK_PRODUCTS = 100;
+// AI çağrılarının aynı anda kaç tanesinin çalışacağını sınırlıyor; bulk
+// istekte bile soket/olay döngüsü tıkanmasını önler.
+const BULK_AI_CONCURRENCY = 5;
 
 const router = express.Router();
 
@@ -25,6 +35,26 @@ const router = express.Router();
 // dönülmesini sağlar.
 function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
+}
+
+// items'ı fn ile dönüştürür, ama aynı anda en fazla `limit` tanesi
+// çalışır — Promise.all'ın aksine, her biri (potansiyel olarak) bir AI
+// çağrısı tetikleyen büyük bir dizi tek seferde ateşlenmez.
+async function mapWithConcurrency(items, limit, fn) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await fn(items[currentIndex], currentIndex);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, worker);
+  await Promise.all(workers);
+  return results;
 }
 
 // Tüm ürünleri listele
@@ -40,7 +70,7 @@ router.get("/", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Ürünler getirilirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -79,7 +109,7 @@ router.get("/expiring-soon", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Bozulmaya yaklaşan ürünler getirilirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -132,7 +162,7 @@ router.patch("/:id/manual-expire-date", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Güncelleme sırasında hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -151,7 +181,7 @@ router.get("/usable-for-recipes", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Ürünler getirilirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -171,7 +201,7 @@ router.get("/summary-by-name", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Ürün özeti getirilirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -226,7 +256,7 @@ router.post("/", async (req, res) => {
   } catch (error) {
     res.status(error.status || 500).json({
       message: error.status ? error.message : "Ürün eklenirken hata oluştu.",
-      error: error.status ? undefined : error.message,
+      error: error.status ? undefined : safeErrorDetail(error),
     });
   }
 });
@@ -242,8 +272,16 @@ router.post("/bulk", async (req, res) => {
       return res.status(400).json({ message: "products alanı boş olmayan bir dizi olmalı." });
     }
 
-    const productInputs = await Promise.all(
-      products.map((product) => buildProductInput(product))
+    if (products.length > MAX_BULK_PRODUCTS) {
+      return res.status(400).json({
+        message: `Tek seferde en fazla ${MAX_BULK_PRODUCTS} ürün eklenebilir.`,
+      });
+    }
+
+    const productInputs = await mapWithConcurrency(
+      products,
+      BULK_AI_CONCURRENCY,
+      (product) => buildProductInput(product)
     );
 
     const createdProducts = await Product.insertMany(
@@ -262,7 +300,7 @@ router.post("/bulk", async (req, res) => {
   } catch (error) {
     res.status(error.status || 500).json({
       message: error.status ? error.message : "Ürünler eklenirken hata oluştu.",
-      error: error.status ? undefined : error.message,
+      error: error.status ? undefined : safeErrorDetail(error),
     });
   }
 });
@@ -291,7 +329,7 @@ router.get("/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Ürün getirilirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -424,7 +462,7 @@ router.patch("/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Ürün güncellenirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -482,7 +520,7 @@ router.delete("/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Ürün silinirken hata oluştu.",
-      error: error.message,
+      error: safeErrorDetail(error),
     });
   }
 });

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -141,7 +142,9 @@ export default function EditProductScreen() {
   }
 
   return (
-    <View className="flex-1 bg-white dark:bg-[#0B1220] px-6 pt-6">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      className="flex-1 bg-white dark:bg-[#0B1220] px-6 pt-6">
       <Text className="text-slate-900 dark:text-white font-semibold text-lg capitalize mb-4">
         {name}
       </Text>
@@ -233,7 +236,11 @@ export default function EditProductScreen() {
         </Pressable>
       </View>
 
-      <Modal visible={showDatePicker} transparent animationType="fade">
+      <Modal
+        visible={showDatePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}>
         <View className="flex-1 justify-end bg-black/40">
           <View className="bg-white dark:bg-[#151F2E] rounded-t-3xl px-4 pt-2 pb-8">
             <View className="items-center py-2">
@@ -259,6 +266,6 @@ export default function EditProductScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
