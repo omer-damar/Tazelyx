@@ -9,7 +9,10 @@
  *
  * `react-native` / `expo-router` are mapped to tiny stubs (see test/stubs/)
  * because two of the pure helpers happen to live next to a component in the
- * same file.
+ * same file. `@/context/ThemeContext` is stubbed too (must come BEFORE the
+ * generic `@/(.*)` mapper below — Jest uses the first matching pattern) since
+ * it imports NativeWind's useColorScheme(), which needs a real
+ * web/native runtime bridge that doesn't exist in plain Node.
  */
 module.exports = {
   preset: "ts-jest",
@@ -18,6 +21,7 @@ module.exports = {
   testMatch: ["**/__tests__/**/*.test.ts?(x)"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
   moduleNameMapper: {
+    "^@/context/ThemeContext$": "<rootDir>/test/stubs/theme-context.js",
     "^@/(.*)$": "<rootDir>/src/$1",
     "^react-native$": "<rootDir>/test/stubs/react-native.js",
     "^expo-router$": "<rootDir>/test/stubs/expo-router.js",

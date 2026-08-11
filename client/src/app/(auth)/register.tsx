@@ -76,7 +76,7 @@ export default function RegisterScreen() {
           </View>
 
           {errorMessage ? (
-            <Text className="text-red-600 text-sm text-center">{errorMessage}</Text>
+            <Text className="text-red-600 dark:text-red-400 text-sm text-center">{errorMessage}</Text>
           ) : null}
 
           <Pressable

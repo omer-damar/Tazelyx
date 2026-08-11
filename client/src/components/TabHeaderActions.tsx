@@ -9,7 +9,11 @@ import { HeaderIconButton } from "@/components/HeaderIconButton";
 export function DefaultTabHeaderRight() {
   return (
     <View className="flex-row items-center">
-      <HeaderIconButton icon="settings-outline" onPress={() => router.push("/(app)/settings")} />
+      <HeaderIconButton
+        icon="settings-outline"
+        onPress={() => router.push("/(app)/settings")}
+        accessibilityLabel="Ayarlar"
+      />
     </View>
   );
 }
@@ -17,8 +21,16 @@ export function DefaultTabHeaderRight() {
 export function UploadTabHeaderRight() {
   return (
     <View className="flex-row items-center">
-      <HeaderIconButton icon="time-outline" onPress={() => router.push("/(app)/upload-history")} />
-      <HeaderIconButton icon="settings-outline" onPress={() => router.push("/(app)/settings")} />
+      <HeaderIconButton
+        icon="time-outline"
+        onPress={() => router.push("/(app)/upload-history")}
+        accessibilityLabel="Fiş geçmişi"
+      />
+      <HeaderIconButton
+        icon="settings-outline"
+        onPress={() => router.push("/(app)/settings")}
+        accessibilityLabel="Ayarlar"
+      />
     </View>
   );
 }

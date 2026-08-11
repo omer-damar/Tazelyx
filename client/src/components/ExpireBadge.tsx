@@ -1,5 +1,7 @@
 import { Text, View } from "react-native";
 
+import { useThemePreference } from "@/context/ThemeContext";
+
 // Backend'deki config.EXPIRING_SOON_DAYS ile senkron tutulmalı (bkz.
 // receipt-ai/config.js) — ileride tek bir kaynağa (ör. bir /config endpoint'i)
 // taşınabilir, şimdilik iki tarafta da aynı sabit tekrarlanıyor.
@@ -22,13 +24,21 @@ export function daysUntil(dateString: string | null): number | null {
 }
 
 export function ExpireBadge({ effectiveExpireDate }: { effectiveExpireDate: string | null }) {
+  const { resolvedScheme } = useThemePreference();
+  const isDark = resolvedScheme === "dark";
   const days = daysUntil(effectiveExpireDate);
   if (days === null) return null;
 
+  // Bu rozetlerin renkleri her iki temada da AYNIYDI — koyu #151F2E kart
+  // üzerinde %10 opak bir zemine karşı ~4.0-4.3:1 kontrastla WCAG AA'nın
+  // (12px yarı-kalın metin için 4.5:1) altında kalıyordu, üstelik bunlar
+  // uygulamanın en güvenlik-kritik etiketleri ("Süresi geçti" gibi).
+  // Koyu modda daha açık tonlar kullanılıyor.
   if (days < 0) {
+    const color = isDark ? "#F87171" : "#EF5A5A";
     return (
-      <View className="rounded-full px-3 py-1" style={{ backgroundColor: "#EF5A5A1A" }}>
-        <Text className="text-xs font-semibold" style={{ color: "#EF5A5A" }}>
+      <View className="rounded-full px-3 py-1" style={{ backgroundColor: `${color}1A` }}>
+        <Text className="text-xs font-semibold" style={{ color }}>
           Süresi geçti
         </Text>
       </View>
@@ -36,9 +46,10 @@ export function ExpireBadge({ effectiveExpireDate }: { effectiveExpireDate: stri
   }
 
   if (days <= EXPIRING_SOON_DAYS) {
+    const color = isDark ? "#FBBF24" : "#D97706";
     return (
-      <View className="rounded-full px-3 py-1" style={{ backgroundColor: "#D977061A" }}>
-        <Text className="text-xs font-semibold" style={{ color: "#D97706" }}>
+      <View className="rounded-full px-3 py-1" style={{ backgroundColor: `${color}1A` }}>
+        <Text className="text-xs font-semibold" style={{ color }}>
           {days === 0 ? "Bugün bozuluyor" : `${days} gün kaldı`}
         </Text>
       </View>

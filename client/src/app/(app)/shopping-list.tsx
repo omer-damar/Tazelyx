@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   SectionList,
   Text,
   TextInput,
@@ -12,6 +13,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { EmptyState } from "@/components/EmptyState";
+import { ScreenState } from "@/components/ScreenState";
 import { useAuth } from "@/context/AuthContext";
 import {
   addShoppingListItem,
@@ -31,30 +34,37 @@ export default function ShoppingListScreen() {
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const showSpinner = useDelayedLoading(isLoading);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState("");
   const [newItemQuantity, setNewItemQuantity] = useState("");
   const [newItemUnit, setNewItemUnit] = useState<(typeof UNITS)[number] | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!token) return;
-    setErrorMessage(null);
-    try {
-      const { items: fetched } = await getShoppingList(token);
-      setItems(fetched);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof ApiError ? error.message : "Liste yüklenirken bir hata oluştu."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token]);
+  const load = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      if (!token) return;
+      if (!options.silent) setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        const { items: fetched } = await getShoppingList(token);
+        setItems(fetched);
+      } catch (error) {
+        setErrorMessage(
+          error instanceof ApiError ? error.message : "Liste yüklenirken bir hata oluştu."
+        );
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [token]
+  );
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      load({ silent: items.length > 0 });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [load])
   );
 
@@ -135,7 +145,7 @@ export default function ShoppingListScreen() {
   }
 
   return (
-    <SafeAreaView edges={["bottom"]} className="flex-1 bg-slate-50 dark:bg-[#0B1220]">
+    <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface dark:bg-[#0B1220]">
       <View className="px-4 pt-4 pb-2 gap-2">
         <TextInput
           value={newItemName}
@@ -144,7 +154,8 @@ export default function ShoppingListScreen() {
           placeholder="Ürün adı ekle..."
           placeholderTextColor="#94a3b8"
           returnKeyType="done"
-          className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-slate-900 dark:text-white bg-white dark:bg-white/5"
+          accessibilityLabel="Ürün adı"
+          className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-ink dark:text-white bg-white dark:bg-white/5"
           style={{ height: 48, paddingVertical: 0 }}
         />
 
@@ -155,7 +166,8 @@ export default function ShoppingListScreen() {
             placeholder="Miktar (ops.)"
             placeholderTextColor="#94a3b8"
             keyboardType="decimal-pad"
-            className="border border-slate-200 dark:border-white/10 rounded-xl px-3 text-base text-slate-900 dark:text-white bg-white dark:bg-white/5"
+            accessibilityLabel="Miktar (opsiyonel)"
+            className="border border-slate-200 dark:border-white/10 rounded-xl px-3 text-base text-ink dark:text-white bg-white dark:bg-white/5"
             style={{ width: 100, height: 44, paddingVertical: 0 }}
           />
 
@@ -163,6 +175,9 @@ export default function ShoppingListScreen() {
             <Pressable
               key={option}
               onPress={() => setNewItemUnit((current) => (current === option ? null : option))}
+              accessibilityRole="button"
+              accessibilityLabel={`Birim: ${option}`}
+              accessibilityState={{ selected: newItemUnit === option }}
               className={`px-3 rounded-xl border items-center justify-center active:opacity-70 ${
                 newItemUnit === option
                   ? "bg-brand-green border-brand-green"
@@ -183,6 +198,8 @@ export default function ShoppingListScreen() {
           <Pressable
             onPress={handleAddItem}
             disabled={isAdding || !newItemName.trim()}
+            accessibilityRole="button"
+            accessibilityLabel="Alışveriş listesine ekle"
             className="flex-1 bg-brand-green rounded-xl items-center justify-center active:opacity-80 disabled:opacity-50"
             style={{ height: 44 }}>
             {isAdding ? (
@@ -194,48 +211,45 @@ export default function ShoppingListScreen() {
         </View>
       </View>
 
-      {isLoading ? (
-        showSpinner ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator color="#047857" />
-          </View>
-        ) : null
-      ) : errorMessage ? (
-        <View className="flex-1 items-center justify-center gap-3 px-6">
-          <Text className="text-slate-500 dark:text-slate-400 text-center">{errorMessage}</Text>
-          <Pressable onPress={() => load()} className="active:opacity-70">
-            <Text className="text-brand-green font-semibold">Tekrar dene</Text>
-          </Pressable>
-        </View>
-      ) : (
+      <ScreenState
+        isLoading={isLoading}
+        showSpinner={showSpinner}
+        errorMessage={errorMessage}
+        onRetry={load}>
         <SectionList
           sections={groupedSections}
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ padding: 16, paddingTop: 8, paddingBottom: 32 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => {
+                setIsRefreshing(true);
+                load({ silent: true });
+              }}
+              tintColor="#047857"
+            />
+          }
           renderSectionHeader={({ section }) => (
-            <Text className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase mb-2 mt-3 bg-slate-50 dark:bg-[#0B1220]">
+            <Text className="text-ink-muted dark:text-slate-400 text-xs font-semibold uppercase mb-2 mt-3 bg-surface dark:bg-[#0B1220]">
               {section.title}
             </Text>
           )}
           ListEmptyComponent={
-            <View className="items-center justify-center mt-20 gap-3 px-6">
-              <View className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-500/10 items-center justify-center">
-                <Ionicons name="cart-outline" size={36} color="#047857" />
-              </View>
-              <Text className="text-slate-900 dark:text-white font-semibold text-base">
-                Alışveriş listen boş
-              </Text>
-              <Text className="text-slate-500 dark:text-slate-400 text-center">
-                Yukarıdan manuel ekleyebilir, ya da "Tükenmek Üzere" ekranından bir ürünü listeye
-                gönderebilirsin.
-              </Text>
-            </View>
+            <EmptyState
+              icon="cart-outline"
+              title="Alışveriş listen boş"
+              description={'Yukarıdan manuel ekleyebilir, ya da "Tükenmek Üzere" ekranından bir ürünü listeye gönderebilirsin.'}
+            />
           }
           renderItem={({ item }) => (
             <View className="flex-row items-center bg-white dark:bg-[#151F2E] rounded-2xl border border-slate-100 dark:border-white/10 px-4 py-3 mb-3">
               <Pressable
                 onPress={() => handleToggle(item)}
                 hitSlop={8}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: item.isChecked }}
+                accessibilityLabel={`${item.name}${item.isChecked ? ", alındı" : ""}`}
                 className="mr-3 active:opacity-70">
                 <View
                   className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
@@ -252,7 +266,7 @@ export default function ShoppingListScreen() {
                   className={`text-base capitalize ${
                     item.isChecked
                       ? "text-slate-400 dark:text-slate-500 line-through"
-                      : "text-slate-900 dark:text-white font-medium"
+                      : "text-ink dark:text-white font-medium"
                   }`}>
                   {item.name}
                 </Text>
@@ -267,13 +281,18 @@ export default function ShoppingListScreen() {
                 <Ionicons name="trending-down-outline" size={14} color="#6366f1" style={{ marginRight: 8 }} />
               ) : null}
 
-              <Pressable onPress={() => handleDelete(item)} hitSlop={8} className="active:opacity-60">
+              <Pressable
+                onPress={() => handleDelete(item)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.name} ürününü listeden sil`}
+                className="active:opacity-60">
                 <Ionicons name="trash-outline" size={18} color="#94a3b8" />
               </Pressable>
             </View>
           )}
         />
-      )}
+      </ScreenState>
     </SafeAreaView>
   );
 }
