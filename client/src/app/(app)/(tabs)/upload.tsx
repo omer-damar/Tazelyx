@@ -240,10 +240,24 @@ export default function UploadReceiptScreen() {
           </View>
         ) : reviewItems ? (
           <>
-            <Text className="text-slate-500 dark:text-slate-400 text-sm mb-3">
-              Kilere eklemek istemediğin ürünlerin işaretini kaldır, istersen ürün bazlı son
-              kullanma tarihi gir.
-            </Text>
+            {reviewItems.length === 0 ? (
+              <View className="items-center justify-center mt-10 mb-6 gap-3 px-6">
+                <View className="w-20 h-20 rounded-full bg-amber-50 dark:bg-amber-500/10 items-center justify-center">
+                  <Ionicons name="alert-circle-outline" size={36} color="#D97706" />
+                </View>
+                <Text className="text-slate-900 dark:text-white font-semibold text-base text-center">
+                  Fişten hiçbir ürün okunamadı
+                </Text>
+                <Text className="text-slate-500 dark:text-slate-400 text-center">
+                  Fotoğraf net değilse tekrar dener, ya da aşağıdan ürünleri elle ekleyebilirsin.
+                </Text>
+              </View>
+            ) : (
+              <Text className="text-slate-500 dark:text-slate-400 text-sm mb-3">
+                Kilere eklemek istemediğin ürünlerin işaretini kaldır, istersen ürün bazlı son
+                kullanma tarihi gir.
+              </Text>
+            )}
 
             {reviewItems.map((item) => (
               <View
@@ -299,18 +313,20 @@ export default function UploadReceiptScreen() {
               <Text className="text-red-600 dark:text-red-400 text-sm text-center mt-2 mb-2">{errorMessage}</Text>
             ) : null}
 
-            <Pressable
-              onPress={handleSaveSelected}
-              disabled={isSaving}
-              className="bg-brand-green rounded-xl py-4 items-center mt-2 active:opacity-80 disabled:opacity-60">
-              {isSaving ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text className="text-white text-base font-semibold">
-                  Seçilenleri Kilere Ekle ({reviewItems.filter((i) => i.selected).length})
-                </Text>
-              )}
-            </Pressable>
+            {reviewItems.length > 0 ? (
+              <Pressable
+                onPress={handleSaveSelected}
+                disabled={isSaving}
+                className="bg-brand-green rounded-xl py-4 items-center mt-2 active:opacity-80 disabled:opacity-60">
+                {isSaving ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text className="text-white text-base font-semibold">
+                    Seçilenleri Kilere Ekle ({reviewItems.filter((i) => i.selected).length})
+                  </Text>
+                )}
+              </Pressable>
+            ) : null}
             <Pressable onPress={resetAll} className="items-center py-3 active:opacity-70">
               <Text className="text-slate-500 dark:text-slate-400">Vazgeç</Text>
             </Pressable>

@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { Link, router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 import { AuthBackground } from "@/components/AuthBackground";
@@ -15,6 +15,7 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [needsVerification, setNeedsVerification] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const passwordInputRef = useRef<TextInput>(null);
 
   // Bu ekrandan ayrılınca (başarılı girişten sonra ya da kayıt/şifremi
   // unuttum'a geçilince) mesajı temizle — sonraki normal ziyaretlerde
@@ -76,15 +77,26 @@ export default function LoginScreen() {
               placeholderTextColor="#7c9189"
               autoCapitalize="none"
               keyboardType="email-address"
+              textContentType="emailAddress"
+              autoComplete="email"
+              returnKeyType="next"
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
+              accessibilityLabel="E-posta"
               className="border border-white/40 rounded-xl px-4 text-base text-slate-900 bg-white/30"
               style={{ height: 56, paddingVertical: 0 }}
             />
             <TextInput
+              ref={passwordInputRef}
               value={password}
               onChangeText={setPassword}
               placeholder="Şifre"
               placeholderTextColor="#7c9189"
               secureTextEntry
+              textContentType="password"
+              autoComplete="password"
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+              accessibilityLabel="Şifre"
               className="border border-white/40 rounded-xl px-4 text-base text-slate-900 bg-white/30"
               style={{ height: 56, paddingVertical: 0 }}
             />

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/AppHeader";
@@ -87,7 +87,12 @@ function RecipeCard({
 
       {recipe.sourceLink ? (
         <Pressable
-          onPress={() => Linking.openURL(recipe.sourceLink!.url)}
+          onPress={() => {
+            const url = recipe.sourceLink?.url;
+            if (url) Linking.openURL(url).catch(() => Alert.alert("Açılamadı", "Bağlantı açılırken bir hata oluştu."));
+          }}
+          accessibilityRole="link"
+          accessibilityLabel={`İlgili gerçek tarif: ${recipe.sourceLink.title}`}
           className="flex-row items-center gap-2 mt-3 active:opacity-70">
           <Ionicons name="link-outline" size={14} color="#047857" />
           <Text className="text-brand-green text-xs flex-1 underline" numberOfLines={1}>
@@ -142,6 +147,8 @@ export default function RecipesScreen() {
         <Pressable
           onPress={handleSuggest}
           disabled={isLoading}
+          accessibilityRole="button"
+          accessibilityLabel={hasSearched ? "Yeni tarifler öner" : "Kilerime göre tarif öner"}
           className="bg-brand-green rounded-xl py-4 items-center active:opacity-80 disabled:opacity-60">
           {isLoading ? (
             <ActivityIndicator color="white" />
@@ -165,6 +172,19 @@ export default function RecipesScreen() {
             </View>
             <Text className="text-ink-muted dark:text-slate-400 text-center">
               Kilerindeki ürünlere göre AI'ın önereceği tarifleri görmek için yukarıdaki butona bas.
+            </Text>
+          </View>
+        ) : recipes.length === 0 ? (
+          <View className="items-center mt-16 gap-3 px-8">
+            <View className="w-20 h-20 rounded-full bg-amber-50 dark:bg-amber-500/10 items-center justify-center">
+              <Ionicons name="sad-outline" size={36} color="#D97706" />
+            </View>
+            <Text className="text-ink dark:text-white font-semibold text-base text-center">
+              Uygun bir tarif bulunamadı
+            </Text>
+            <Text className="text-ink-muted dark:text-slate-400 text-center">
+              Kilerindeki ürünlerle uyumlu bir tarif üretilemedi — birkaç ürün daha ekleyip tekrar
+              deneyebilirsin.
             </Text>
           </View>
         ) : (

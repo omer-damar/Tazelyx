@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -18,6 +19,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/AppHeader";
+import { EmptyState } from "@/components/EmptyState";
 import { ExpireBadge } from "@/components/ExpireBadge";
 import { LyxMascot } from "@/components/LyxMascot";
 import { DefaultTabHeaderRight } from "@/components/TabHeaderActions";
@@ -115,6 +117,20 @@ export default function PantryScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("recent");
+  // Kaydırma jesti (sağa=tükettim, sola=bozuldu) uygulamanın TÜM İsraf
+  // Skoru özelliğinin dayandığı ana etkileşim ama hiçbir yerde
+  // öğretilmiyordu — bir kere gösterilen, kapatılabilir bir ipucu.
+  // "Görüldü" bilgisi SecureStore'da kalıcı, bir daha çıkmıyor.
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
+  useEffect(() => {
+    SecureStore.getItemAsync("tazelyx_swipe_hint_seen").then((seen) => {
+      if (!seen) setShowSwipeHint(true);
+    });
+  }, []);
+  function dismissSwipeHint() {
+    setShowSwipeHint(false);
+    SecureStore.setItemAsync("tazelyx_swipe_hint_seen", "1");
+  }
 
   const [pendingDelete, setPendingDelete] = useState<{
     product: Product;
@@ -298,7 +314,7 @@ export default function PantryScreen() {
         left={<LyxMascot moodImages={KILER_MOOD_IMAGES} score={wasteScore} />}
         right={<DefaultTabHeaderRight />}
       />
-      <SafeAreaView edges={["bottom"]} className="flex-1 bg-slate-50 dark:bg-[#0B1220]">
+      <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface dark:bg-[#0B1220]">
       <View className="flex-1 px-4 pt-4">
         {isLoading ? (
           showSpinner ? (
@@ -308,7 +324,7 @@ export default function PantryScreen() {
           ) : null
         ) : errorMessage ? (
           <View className="flex-1 items-center justify-center gap-3 px-6">
-            <Text className="text-slate-500 dark:text-slate-400 text-center">{errorMessage}</Text>
+            <Text className="text-ink-muted dark:text-slate-400 text-center">{errorMessage}</Text>
             <Pressable onPress={() => loadProducts()} className="active:opacity-70">
               <Text className="text-brand-green font-semibold">Tekrar dene</Text>
             </Pressable>
@@ -324,11 +340,16 @@ export default function PantryScreen() {
                 onChangeText={setSearchQuery}
                 placeholder="Kilerinde ara..."
                 placeholderTextColor="#94a3b8"
-                className="flex-1 ml-2 text-slate-900 dark:text-white"
+                accessibilityLabel="Kilerinde ara"
+                className="flex-1 ml-2 text-ink dark:text-white"
                 style={{ height: 44, paddingVertical: 0 }}
               />
               {searchQuery ? (
-                <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
+                <Pressable
+                  onPress={() => setSearchQuery("")}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Aramayı temizle">
                   <Ionicons name="close-circle" size={18} color="#94a3b8" />
                 </Pressable>
               ) : null}
@@ -365,6 +386,23 @@ export default function PantryScreen() {
               ))}
             </ScrollView>
 
+            {showSwipeHint && products.length > 0 ? (
+              <View className="flex-row items-center bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-xl px-3 py-2.5 mb-3">
+                <Ionicons name="hand-left-outline" size={18} color="#047857" />
+                <Text className="flex-1 ml-2 text-ink dark:text-white text-xs">
+                  Bir ürünü sağa kaydır: <Text className="font-semibold">Tükettim</Text>, sola
+                  kaydır: <Text className="font-semibold">Bozuldu</Text>.
+                </Text>
+                <Pressable
+                  onPress={dismissSwipeHint}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="İpucunu kapat">
+                  <Ionicons name="close" size={16} color={isDark ? "#94a3b8" : "#64748b"} />
+                </Pressable>
+              </View>
+            ) : null}
+
             {sortBy === "category" ? (
               <SectionList
                 sections={groupedSections}
@@ -381,14 +419,11 @@ export default function PantryScreen() {
                   <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#047857" />
                 }
                 ListEmptyComponent={
-                  <View className="items-center justify-center mt-20 gap-3 px-6">
-                    <View className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-500/10 items-center justify-center">
-                      <Ionicons name="basket-outline" size={36} color="#047857" />
-                    </View>
-                    <Text className="text-slate-900 dark:text-white font-semibold text-base">
-                      Kilerin boş görünüyor
-                    </Text>
-                  </View>
+                  <EmptyState
+                    icon="basket-outline"
+                    title="Kilerin boş görünüyor"
+                    description="Sağ alttaki + butonuyla ilk ürününü ekle veya bir fiş yükle."
+                  />
                 }
                 contentContainerStyle={{ paddingBottom: 140 }}
                 stickySectionHeadersEnabled={false}
@@ -404,23 +439,15 @@ export default function PantryScreen() {
                   <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#047857" />
                 }
                 ListEmptyComponent={
-                  <View className="items-center justify-center mt-20 gap-3 px-6">
-                    <View className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-500/10 items-center justify-center">
-                      <Ionicons
-                        name={searchQuery ? "search-outline" : "basket-outline"}
-                        size={36}
-                        color="#047857"
-                      />
-                    </View>
-                    <Text className="text-slate-900 dark:text-white font-semibold text-base">
-                      {searchQuery ? "Eşleşen ürün yok" : "Kilerin boş görünüyor"}
-                    </Text>
-                    <Text className="text-slate-500 dark:text-slate-400 text-center">
-                      {searchQuery
+                  <EmptyState
+                    icon={searchQuery ? "search-outline" : "basket-outline"}
+                    title={searchQuery ? "Eşleşen ürün yok" : "Kilerin boş görünüyor"}
+                    description={
+                      searchQuery
                         ? "Farklı bir arama terimi dene."
-                        : "Sağ alttaki + butonuyla ilk ürününü ekle veya bir fiş yükle."}
-                    </Text>
-                  </View>
+                        : "Sağ alttaki + butonuyla ilk ürününü ekle veya bir fiş yükle."
+                    }
+                  />
                 }
                 contentContainerStyle={{ paddingBottom: 140 }}
               />
@@ -429,12 +456,16 @@ export default function PantryScreen() {
         )}
 
         {pendingDelete ? (
-          <View className="absolute left-4 right-4 bottom-24 bg-slate-900 rounded-xl px-4 py-3 flex-row items-center justify-between">
+          <View className="absolute left-4 right-4 bottom-24 bg-slate-900 dark:bg-[#1E293B] dark:border dark:border-white/10 rounded-xl px-4 py-3 flex-row items-center justify-between">
             <Text className="text-white flex-1 pr-3 capitalize">
               {pendingDelete.product.name}{" "}
               {pendingDelete.reason === "consumed" ? "tüketildi" : "bozuldu"}
             </Text>
-            <Pressable onPress={handleUndoDelete} hitSlop={8}>
+            <Pressable
+              onPress={handleUndoDelete}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Silme işlemini geri al">
               <Text className="text-emerald-400 font-semibold">Geri Al</Text>
             </Pressable>
           </View>
@@ -442,6 +473,8 @@ export default function PantryScreen() {
 
         <Pressable
           onPress={() => router.push("/(app)/add-product")}
+          accessibilityRole="button"
+          accessibilityLabel="Yeni ürün ekle"
           className="absolute bottom-24 right-2 bg-brand-green rounded-full w-14 h-14 items-center justify-center active:opacity-80"
           style={{ elevation: 4, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}>
           <Text className="text-white text-2xl leading-none">+</Text>

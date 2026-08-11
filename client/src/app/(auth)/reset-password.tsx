@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 import { AuthBackground } from "@/components/AuthBackground";
@@ -14,6 +14,7 @@ export default function ResetPasswordScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const confirmInputRef = useRef<TextInput>(null);
 
   async function handleSubmit() {
     setErrorMessage(null);
@@ -80,15 +81,26 @@ export default function ResetPasswordScreen() {
                   placeholder="Yeni şifre (en az 8 karakter)"
                   placeholderTextColor="#7c9189"
                   secureTextEntry
+                  textContentType="newPassword"
+                  autoComplete="password-new"
+                  returnKeyType="next"
+                  onSubmitEditing={() => confirmInputRef.current?.focus()}
+                  accessibilityLabel="Yeni şifre, en az 8 karakter"
                   className="border border-white/40 rounded-xl px-4 text-base text-slate-900 bg-white/30"
                   style={{ height: 56, paddingVertical: 0 }}
                 />
                 <TextInput
+                  ref={confirmInputRef}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder="Yeni şifre (tekrar)"
                   placeholderTextColor="#7c9189"
                   secureTextEntry
+                  textContentType="newPassword"
+                  autoComplete="password-new"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
+                  accessibilityLabel="Yeni şifre tekrar"
                   className="border border-white/40 rounded-xl px-4 text-base text-slate-900 bg-white/30"
                   style={{ height: 56, paddingVertical: 0 }}
                 />
