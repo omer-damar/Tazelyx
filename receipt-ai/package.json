@@ -1,15 +1,16 @@
 {
-  "name": "receipt-ai",
+  "name": "tazelyx-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Tazelyx (Akıllı Kiler) REST API — Node.js/Express, MongoDB, AI destekli fiş ayrıştırma ve tarif önerisi",
+  "main": "server.js",
+  "private": true,
   "scripts": {
     "dev": "nodemon server.js",
     "test": "jest"
   },
-  "keywords": [],
+  "keywords": ["food-waste", "pantry-management", "receipt-ocr", "expo", "react-native"],
   "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
     "@google-cloud/vision": "^5.3.4",

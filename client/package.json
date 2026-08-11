@@ -1,5 +1,7 @@
 {
-  "name": "client",
+  "name": "tazelyx",
+  "description": "Tazelyx (Akıllı Kiler) mobil istemcisi — React Native + Expo Router",
+  "license": "UNLICENSED",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
