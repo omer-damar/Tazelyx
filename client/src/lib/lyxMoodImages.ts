@@ -1,4 +1,4 @@
-import type { LyxMoodTier } from "@/components/LyxMascot";
+import type { LyxMoodTier } from "@/lib/wasteScoreTiers";
 
 // Her sayfa için 5 skor aralığına özel (kritik/düşük/orta/iyi/harika)
 // görseller client/assets/images/lyx/ altında tutulur; her tier kendi
@@ -33,4 +33,14 @@ export const PANEL_MOOD_IMAGES: Record<LyxMoodTier, number> = {
   orta: require("@/assets/images/lyx/lyx_panel_orta.png"),
   iyi: require("@/assets/images/lyx/lyx_panel_iyi.png"),
   harika: require("@/assets/images/lyx/lyx_panel_harika.png"),
+};
+
+// Sayfa-özel setlerden BAĞIMSIZ, "genel" Lyx görseli — skor detay ekranındaki
+// büyük mascot ve bilgi modalındaki tier lejandı için (bkz. score.tsx).
+export const GLOBAL_MOOD_IMAGES: Record<LyxMoodTier, number> = {
+  kritik: require("@/assets/images/lyx/lyx_kritik.png"),
+  dusuk: require("@/assets/images/lyx/lyx_dusuk.png"),
+  orta: require("@/assets/images/lyx/lyx_orta.png"),
+  iyi: require("@/assets/images/lyx/lyx_iyi.png"),
+  harika: require("@/assets/images/lyx/lyx_harika.png"),
 };

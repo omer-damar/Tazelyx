@@ -22,20 +22,36 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
+// Yanlış Wi-Fi ağındaki bir kullanıcı için (hardcoded LAN IP hiç yanıt
+// vermez) fetch'in platform varsayılan zaman aşımı çok uzun (genelde 60 sn+)
+// — bu süre boyunca ekranda "yükleniyor" dönüp durur, iptal etme veya "bağlantını
+// kontrol et" gibi bir geri bildirim yok. 15 sn sonra isteği kendimiz iptal
+// edip anlaşılır bir hata mesajı veriyoruz.
+const REQUEST_TIMEOUT_MS = 15000;
+
 async function apiRequest<T>(
   path: string,
   options: { method?: string; body?: unknown; token?: string } = {}
 ): Promise<T> {
   const { method = "GET", body, token } = options;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError("Bağlantı zaman aşımına uğradı. İnternet/Wi-Fi bağlantını kontrol et.", 0);
+    }
+    throw new ApiError("Sunucuya ulaşılamadı. İnternet/Wi-Fi bağlantını kontrol et.", 0);
+  }
 
   const data = await response.json().catch(() => ({}));
 

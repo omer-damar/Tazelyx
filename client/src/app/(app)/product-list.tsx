@@ -1,10 +1,11 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { FlatList, RefreshControl, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { EmptyState } from "@/components/EmptyState";
 import { ExpireBadge } from "@/components/ExpireBadge";
+import { ScreenState } from "@/components/ScreenState";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError, getProducts, type Product } from "@/lib/api";
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
@@ -22,16 +23,25 @@ const TITLES: Record<Filter, string> = {
 };
 
 export default function ProductListScreen() {
-  const { filter } = useLocalSearchParams<{ filter: Filter }>();
+  const params = useLocalSearchParams<{ filter: Filter }>();
+  // Route param'ları çalışma zamanında `string | undefined` — bu ekrana
+  // tanımsız bir `filter` ile ulaşılırsa (derin link, durum geri yükleme)
+  // TITLES[undefined] çökme yerine anlamlı bir başlığa düşsün diye.
+  const filter: Filter = params.filter === "manual" || params.filter === "estimated"
+    ? params.filter
+    : "estimated";
   const { token } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const showSpinner = useDelayedLoading(isLoading);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
+  const load = useCallback(
+    async (options: { silent?: boolean } = {}) => {
       if (!token) return;
+      if (!options.silent) setIsLoading(true);
+      setErrorMessage(null);
       try {
         const { products: fetched } = await getProducts(token);
         setProducts(
@@ -43,48 +53,48 @@ export default function ProductListScreen() {
         );
       } finally {
         setIsLoading(false);
+        setIsRefreshing(false);
       }
-    })();
-  }, [token, filter]);
+    },
+    [token, filter]
+  );
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
-    <SafeAreaView edges={["bottom"]} className="flex-1 bg-slate-50 dark:bg-[#0B1220]">
+    <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface dark:bg-[#0B1220]">
       <Stack.Screen options={{ title: TITLES[filter] }} />
-      {isLoading ? (
-        showSpinner ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator color="#047857" />
-          </View>
-        ) : null
-      ) : errorMessage ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-slate-500 dark:text-slate-400 text-center">{errorMessage}</Text>
-        </View>
-      ) : (
+      <ScreenState
+        isLoading={isLoading}
+        showSpinner={showSpinner}
+        errorMessage={errorMessage}
+        onRetry={load}>
         <FlatList
           data={products}
           keyExtractor={(item) => item._id}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => {
+                setIsRefreshing(true);
+                load({ silent: true });
+              }}
+              tintColor="#047857"
+            />
+          }
           ListEmptyComponent={
-            <View className="items-center justify-center mt-20 gap-3 px-6">
-              <View className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-500/10 items-center justify-center">
-                <Ionicons name="file-tray-outline" size={36} color="#047857" />
-              </View>
-              <Text className="text-slate-900 dark:text-white font-semibold text-base">
-                Burada ürün yok
-              </Text>
-              <Text className="text-slate-500 dark:text-slate-400 text-center">
-                {EMPTY_MESSAGES[filter]}
-              </Text>
-            </View>
+            <EmptyState icon="file-tray-outline" title="Burada ürün yok" description={EMPTY_MESSAGES[filter]} />
           }
           renderItem={({ item }) => (
             <View className="flex-row items-center justify-between bg-white dark:bg-[#151F2E] rounded-2xl border border-slate-100 dark:border-white/10 px-4 py-3 mb-3">
               <View className="flex-1 pr-3">
-                <Text className="text-slate-900 dark:text-white font-semibold text-base capitalize">
+                <Text className="text-ink dark:text-white font-semibold text-base capitalize">
                   {item.name}
                 </Text>
-                <Text className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+                <Text className="text-ink-muted dark:text-slate-400 text-sm mt-0.5">
                   {item.quantity} {item.unit}
                 </Text>
               </View>
@@ -92,7 +102,7 @@ export default function ProductListScreen() {
             </View>
           )}
         />
-      )}
+      </ScreenState>
     </SafeAreaView>
   );
 }

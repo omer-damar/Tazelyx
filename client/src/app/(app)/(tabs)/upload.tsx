@@ -296,7 +296,7 @@ export default function UploadReceiptScreen() {
             </Pressable>
 
             {errorMessage ? (
-              <Text className="text-red-600 text-sm text-center mt-2 mb-2">{errorMessage}</Text>
+              <Text className="text-red-600 dark:text-red-400 text-sm text-center mt-2 mb-2">{errorMessage}</Text>
             ) : null}
 
             <Pressable
@@ -350,7 +350,7 @@ export default function UploadReceiptScreen() {
             </View>
 
             {errorMessage ? (
-              <Text className="text-red-600 text-sm text-center mt-4">{errorMessage}</Text>
+              <Text className="text-red-600 dark:text-red-400 text-sm text-center mt-4">{errorMessage}</Text>
             ) : null}
 
             <Pressable
@@ -465,7 +465,7 @@ export default function UploadReceiptScreen() {
             </View>
 
             {manualItemError ? (
-              <Text className="text-red-600 text-sm text-center mt-3">{manualItemError}</Text>
+              <Text className="text-red-600 dark:text-red-400 text-sm text-center mt-3">{manualItemError}</Text>
             ) : null}
 
             <Pressable

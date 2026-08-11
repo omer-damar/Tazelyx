@@ -3,6 +3,7 @@ import "@/global.css";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -43,9 +44,15 @@ function NavigationThemeBridge() {
 function RootNavigator() {
   const { token, isLoading } = useAuth();
 
-  if (!isLoading) {
-    SplashScreen.hideAsync();
-  }
+  // Render gövdesinde (her render'da) değil, bir efekt içinde (sadece
+  // isLoading gerçekten değiştiğinde) çalışmalı — React Compiler bunu
+  // yan etki olarak işaretliyor. hideAsync() zaten idempotent olduğu için
+  // önceki hâli pratikte bozuk değildi, ama bu doğru desen.
+  useEffect(() => {
+    if (!isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
 
   if (isLoading) {
     return null;

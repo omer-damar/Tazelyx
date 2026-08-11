@@ -33,6 +33,12 @@ export function useThemePreference() {
 export function AppThemeProvider({ children }: PropsWithChildren) {
   const { colorScheme, setColorScheme } = useNativeWindColorScheme();
   const [preference, setPreferenceState] = useState<ThemePreference>("system");
+  // SecureStore okuması bitene kadar NativeWind "system" varsayılanında
+  // kalıyor — cihazı açık modda ama tercihi Koyu olan bir kullanıcı, her
+  // soğuk açılışta kısa bir beyaz yanıp sönme görürdü. children'ı bu okuma
+  // bitene kadar hiç render ETMEYEREK (kök layout'taki splash ekranı zaten
+  // açık tutulduğu için) bu flash'ı ortadan kaldırıyoruz.
+  const [isPreferenceLoaded, setIsPreferenceLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -40,6 +46,7 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
       const initial = stored ?? "system";
       setPreferenceState(initial);
       setColorScheme(initial);
+      setIsPreferenceLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -49,6 +56,8 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
     setColorScheme(next);
     await SecureStore.setItemAsync(THEME_PREFERENCE_KEY, next);
   }
+
+  if (!isPreferenceLoaded) return null;
 
   return (
     <ThemeContext.Provider

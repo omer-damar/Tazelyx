@@ -1,10 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { EmptyState } from "@/components/EmptyState";
+import { ScreenState } from "@/components/ScreenState";
 import { useAuth } from "@/context/AuthContext";
+import { useThemePreference } from "@/context/ThemeContext";
 import {
   addShoppingListItem,
   ApiError,
@@ -21,15 +24,20 @@ function formatDaysRemaining(days: number) {
 
 export default function RunningLowScreen() {
   const { token } = useAuth();
+  const { resolvedScheme } = useThemePreference();
+  const isDark = resolvedScheme === "dark";
   const [products, setProducts] = useState<RunningLowProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const showSpinner = useDelayedLoading(isLoading);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
+  const load = useCallback(
+    async (options: { silent?: boolean } = {}) => {
       if (!token) return;
+      if (!options.silent) setIsLoading(true);
+      setErrorMessage(null);
       try {
         const { products: fetched } = await getRunningLowProducts(token);
         setProducts(fetched);
@@ -42,9 +50,15 @@ export default function RunningLowScreen() {
         );
       } finally {
         setIsLoading(false);
+        setIsRefreshing(false);
       }
-    })();
-  }, [token]);
+    },
+    [token]
+  );
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Alışveriş listesine eklenince kalem bu ekrandan (Tükenmek Üzere) kaldırılır
   // — yalnızca bir "Eklendi" rozeti gösterip kalemi listede bırakmak, eklemenin
@@ -75,9 +89,11 @@ export default function RunningLowScreen() {
   }
 
   return (
-    <SafeAreaView edges={["bottom"]} className="flex-1 bg-slate-50 dark:bg-[#0B1220]">
+    <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface dark:bg-[#0B1220]">
       <Pressable
         onPress={() => router.push("/(app)/shopping-list")}
+        accessibilityRole="button"
+        accessibilityLabel="Alışveriş listeni gör"
         className="flex-row items-center justify-between bg-white dark:bg-[#151F2E] border border-slate-100 dark:border-white/10 mx-4 mt-4 px-4 py-3 rounded-2xl active:opacity-70">
         <View className="flex-row items-center">
           <Ionicons name="cart-outline" size={18} color="#6366f1" />
@@ -85,56 +101,56 @@ export default function RunningLowScreen() {
             Alışveriş Listeni Gör
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+        <Ionicons name="chevron-forward" size={16} color={isDark ? "#cbd5e1" : "#64748b"} />
       </Pressable>
-      {isLoading ? (
-        showSpinner ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator color="#047857" />
-          </View>
-        ) : null
-      ) : errorMessage ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-slate-500 dark:text-slate-400 text-center">{errorMessage}</Text>
-        </View>
-      ) : (
+      <ScreenState
+        isLoading={isLoading}
+        showSpinner={showSpinner}
+        errorMessage={errorMessage}
+        onRetry={load}>
         <FlatList
           data={products}
           keyExtractor={(item) => item.productId}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={() => {
+                setIsRefreshing(true);
+                load({ silent: true });
+              }}
+              tintColor="#047857"
+            />
+          }
           ListHeaderComponent={
             products.length > 0 ? (
-              <Text className="text-slate-500 dark:text-slate-400 text-sm mb-3">
+              <Text className="text-ink-muted dark:text-slate-400 text-sm mb-3">
                 Geçmiş tüketim hızına göre bu ürünlerin yakında tükeneceğini tahmin ediyoruz.
               </Text>
             ) : null
           }
           ListEmptyComponent={
-            <View className="items-center justify-center mt-20 gap-3 px-6">
-              <View className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-500/10 items-center justify-center">
-                <Ionicons name="checkmark-circle-outline" size={36} color="#047857" />
-              </View>
-              <Text className="text-slate-900 dark:text-white font-semibold text-base">
-                Tükenmek üzere ürün yok
-              </Text>
-              <Text className="text-slate-500 dark:text-slate-400 text-center">
-                Yeterli tüketim geçmişi biriktikçe, tükenmek üzere olan ürünler burada görünecek.
-              </Text>
-            </View>
+            <EmptyState
+              icon="checkmark-circle-outline"
+              title="Tükenmek üzere ürün yok"
+              description="Yeterli tüketim geçmişi biriktikçe, tükenmek üzere olan ürünler burada görünecek."
+            />
           }
           renderItem={({ item }) => (
             <View className="flex-row items-center justify-between bg-white dark:bg-[#151F2E] rounded-2xl border border-slate-100 dark:border-white/10 px-4 py-3 mb-3">
               <View className="flex-1 pr-3">
-                <Text className="text-slate-900 dark:text-white font-semibold text-base capitalize">
+                <Text className="text-ink dark:text-white font-semibold text-base capitalize">
                   {item.name}
                 </Text>
-                <Text className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+                <Text className="text-ink-muted dark:text-slate-400 text-sm mt-0.5">
                   {item.quantity} {item.unit} kaldı · {formatDaysRemaining(item.predictedDaysRemaining)}
                 </Text>
               </View>
               <Pressable
                 onPress={() => handleAddToList(item)}
                 disabled={addingId === item.productId}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.name} ürününü alışveriş listesine ekle`}
                 className="flex-row items-center px-3 py-2 rounded-xl bg-brand-green active:opacity-70 disabled:opacity-60">
                 {addingId === item.productId ? (
                   <ActivityIndicator size="small" color="white" />
@@ -146,7 +162,7 @@ export default function RunningLowScreen() {
             </View>
           )}
         />
-      )}
+      </ScreenState>
     </SafeAreaView>
   );
 }

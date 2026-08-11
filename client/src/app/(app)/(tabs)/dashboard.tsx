@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { LyxMascot } from "@/components/LyxMascot";
 import { DefaultTabHeaderRight } from "@/components/TabHeaderActions";
 import { useAuth } from "@/context/AuthContext";
+import { useThemePreference } from "@/context/ThemeContext";
 import { useWasteScore } from "@/context/WasteScoreContext";
 import { ApiError, getDashboardSummary, getRunningLowProducts, type DashboardSummary } from "@/lib/api";
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
@@ -22,18 +23,22 @@ function StatTile({
   label,
   value,
   color,
+  isDark,
   onPress,
 }: {
   icon: IconName;
   label: string;
   value: number;
   color: string;
+  isDark: boolean;
   onPress?: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={`${label}: ${value}`}
       className="bg-white dark:bg-[#151F2E] rounded-2xl border border-slate-100/80 dark:border-white/10 p-4 flex-1 min-w-[45%] overflow-hidden active:opacity-70"
       style={{
         shadowColor: "#0C1624",
@@ -46,7 +51,12 @@ function StatTile({
         <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: `${color}1A` }}>
           <Ionicons name={icon} size={16} color={color} />
         </View>
-        {onPress ? <Ionicons name="chevron-forward" size={16} color="#cbd5e1" /> : null}
+        {/* #cbd5e1 açık modda beyaz kart üzerinde ~1.5:1 kontrastla neredeyse
+            görünmezdi — sadece koyu modda kullanılıyor, açık modda daha
+            koyu bir gri (#64748b) devreye giriyor. */}
+        {onPress ? (
+          <Ionicons name="chevron-forward" size={16} color={isDark ? "#cbd5e1" : "#64748b"} />
+        ) : null}
       </View>
       <Text style={{ color }} className="text-3xl font-bold">
         {value}
@@ -57,8 +67,21 @@ function StatTile({
   );
 }
 
+// Her kutunun kendi rengi vardı ama karanlık modda dallanmıyordu — marka
+// yeşili (#047857) koyu bir kart üzerinde ~2.4:1 kontrastla zar zor
+// okunuyordu. Karanlık modda her biri için daha açık bir ton kullanılıyor.
+const TILE_COLORS = {
+  total: { light: "#047857", dark: "#34C28E" },
+  expiringSoon: { light: "#D97706", dark: "#F0A84E" },
+  manual: { light: "#14b8a6", dark: "#2DD4BF" },
+  estimated: { light: "#64748b", dark: "#94A3B8" },
+  runningLow: { light: "#6366f1", dark: "#818CF8" },
+};
+
 export default function DashboardScreen() {
   const { token } = useAuth();
+  const { resolvedScheme } = useThemePreference();
+  const isDark = resolvedScheme === "dark";
   const { score: wasteScore } = useWasteScore();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -152,28 +175,32 @@ export default function DashboardScreen() {
               icon="file-tray-stacked-outline"
               label="Toplam Ürün"
               value={summary?.totalProducts ?? 0}
-              color="#047857"
+              color={isDark ? TILE_COLORS.total.dark : TILE_COLORS.total.light}
+              isDark={isDark}
               onPress={() => router.navigate("/(app)/(tabs)")}
             />
             <StatTile
               icon="alarm-outline"
               label="Yakında Bozulacak"
               value={summary?.expiringSoon ?? 0}
-              color="#D97706"
+              color={isDark ? TILE_COLORS.expiringSoon.dark : TILE_COLORS.expiringSoon.light}
+              isDark={isDark}
               onPress={() => router.push("/(app)/expiring-soon")}
             />
             <StatTile
               icon="create-outline"
               label="Manuel Tarihli"
               value={summary?.manualExpire ?? 0}
-              color="#14b8a6"
+              color={isDark ? TILE_COLORS.manual.dark : TILE_COLORS.manual.light}
+              isDark={isDark}
               onPress={() => router.push({ pathname: "/(app)/product-list", params: { filter: "manual" } })}
             />
             <StatTile
               icon="calendar-outline"
               label="Tahmini Tarihli"
               value={summary?.estimatedExpire ?? 0}
-              color="#64748b"
+              color={isDark ? TILE_COLORS.estimated.dark : TILE_COLORS.estimated.light}
+              isDark={isDark}
               onPress={() =>
                 router.push({ pathname: "/(app)/product-list", params: { filter: "estimated" } })
               }
@@ -182,7 +209,8 @@ export default function DashboardScreen() {
               icon="cart-outline"
               label="Tükenmek Üzere"
               value={summary?.runningLow ?? 0}
-              color="#6366f1"
+              color={isDark ? TILE_COLORS.runningLow.dark : TILE_COLORS.runningLow.light}
+              isDark={isDark}
               onPress={() => router.push("/(app)/running-low")}
             />
           </View>

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "client",
-    "slug": "client",
+    "name": "Tazelyx",
+    "slug": "tazelyx",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "client",
+    "scheme": "tazelyx",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"

@@ -1,27 +1,19 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  type ImageSourcePropType,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { moodTierForScore } from "@/components/LyxMascot";
 import { WasteScoreChart } from "@/components/WasteScoreChart";
 import { useAuth } from "@/context/AuthContext";
 import { useThemePreference } from "@/context/ThemeContext";
 import { useWasteScore } from "@/context/WasteScoreContext";
 import { ApiError, getWasteScore, type WasteScore, type WasteScoreRange } from "@/lib/api";
 import { categorizeProduct } from "@/lib/categorize";
+import { GLOBAL_MOOD_IMAGES } from "@/lib/lyxMoodImages";
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import { bucketWasteScoreEvents } from "@/lib/wasteScoreBuckets";
+import { moodTierForScore, MOOD_TIERS, scoreLabel } from "@/lib/wasteScoreTiers";
 
 const RANGE_OPTIONS: { value: WasteScoreRange; label: string }[] = [
   { value: "week", label: "Haftalık" },
@@ -29,35 +21,6 @@ const RANGE_OPTIONS: { value: WasteScoreRange; label: string }[] = [
   { value: "year", label: "Yıllık" },
   { value: "all", label: "Tüm Zamanlar" },
 ];
-
-const MOOD_LEGEND: { image: ImageSourcePropType; range: string; label: string }[] = [
-  { image: require("@/assets/images/lyx/lyx_kritik.png"), range: "0-20", label: "Kritik" },
-  { image: require("@/assets/images/lyx/lyx_dusuk.png"), range: "21-40", label: "Düşük" },
-  { image: require("@/assets/images/lyx/lyx_orta.png"), range: "41-60", label: "Orta" },
-  { image: require("@/assets/images/lyx/lyx_iyi.png"), range: "61-80", label: "İyi" },
-  { image: require("@/assets/images/lyx/lyx_harika.png"), range: "81-100", label: "Harika" },
-];
-
-// Bu, sayfa-özel setlerden BAĞIMSIZ, "genel" Lyx görseli — büyük mascot
-// (bu ekranın kendisi) ve yukarıdaki bilgi modalındaki legend için. Sayfa
-// başlıklarındaki (Kiler/Tara/Tarifler/Panel) görseller için bkz.
-// lib/lyxMoodImages.ts.
-const MOOD_IMAGES: Record<import("@/components/LyxMascot").LyxMoodTier, ImageSourcePropType> = {
-  kritik: require("@/assets/images/lyx/lyx_kritik.png"),
-  dusuk: require("@/assets/images/lyx/lyx_dusuk.png"),
-  orta: require("@/assets/images/lyx/lyx_orta.png"),
-  iyi: require("@/assets/images/lyx/lyx_iyi.png"),
-  harika: require("@/assets/images/lyx/lyx_harika.png"),
-};
-
-function scoreLabel(score: number | null) {
-  if (score === null) return "Henüz veri yok";
-  if (score <= 20) return "Kritik";
-  if (score <= 40) return "Düşük";
-  if (score <= 60) return "Orta";
-  if (score <= 80) return "İyi";
-  return "Harika";
-}
 
 type CategoryBreakdownItem = { category: string; count: number; percent: number };
 
@@ -256,7 +219,7 @@ export default function ScoreScreen() {
         ) : (
           <>
             <View className="items-center bg-white dark:bg-[#151F2E] rounded-3xl border border-slate-100/80 dark:border-white/10 py-6 mb-4">
-              <Image source={MOOD_IMAGES[mood]} style={{ width: 140, height: 140 }} resizeMode="contain" />
+              <Image source={GLOBAL_MOOD_IMAGES[mood]} style={{ width: 140, height: 140 }} resizeMode="contain" />
               <Text className="text-ink dark:text-white text-4xl font-bold mt-2">
                 {data?.score === null || data?.score === undefined ? "—" : Math.round(data.score)}
               </Text>
@@ -379,9 +342,13 @@ export default function ScoreScreen() {
               <Text className="text-ink dark:text-white font-semibold text-sm mb-2">
                 Lyx skoruna göre nasıl değişir
               </Text>
-              {MOOD_LEGEND.map((item) => (
-                <View key={item.label} className="flex-row items-center gap-3 mb-2.5">
-                  <Image source={item.image} style={{ width: 44, height: 44 }} resizeMode="contain" />
+              {MOOD_TIERS.map((item) => (
+                <View key={item.tier} className="flex-row items-center gap-3 mb-2.5">
+                  <Image
+                    source={GLOBAL_MOOD_IMAGES[item.tier]}
+                    style={{ width: 44, height: 44 }}
+                    resizeMode="contain"
+                  />
                   <View>
                     <Text className="text-ink dark:text-white text-sm font-medium">{item.label}</Text>
                     <Text className="text-ink-muted dark:text-slate-400 text-xs">

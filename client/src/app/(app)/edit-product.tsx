@@ -1,6 +1,6 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -41,28 +41,46 @@ export default function EditProductScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Yükleme hatası, kaydetme hatasından AYRI tutuluyor — biri "form asla
+  // dolmadı, tekrar dene" demek, diğeri "form dolu, kaydederken bir sorun
+  // oldu" demek. Önceden ikisi aynı state'i paylaştığı için yükleme
+  // başarısız olduğunda kullanıcı boş/düzenlenebilir bir form görüyordu ve
+  // "Kaydet"e basınca kileri çöp veriyle güncelleyebiliyordu.
+  const [loadErrorMessage, setLoadErrorMessage] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!token || !id) return;
+    setIsLoading(true);
+    setLoadErrorMessage(null);
+    try {
+      const { product } = await getProduct(token, id);
+      setName(product.name);
+      setQuantity(String(product.quantity));
+      // `Product.unit` API tipinde düz `string` — backend hiçbir zaman
+      // UNITS dışında bir değer döndürmemeli ama tip sistemi bunu garanti
+      // etmiyor; beklenmedik bir değer sessizce hiçbir birim çipini seçili
+      // göstermez ve kaydedince o beklenmedik değeri geri yazardı.
+      setUnit(
+        (UNITS as readonly string[]).includes(product.unit)
+          ? (product.unit as (typeof UNITS)[number])
+          : "adet"
+      );
+      setExpireDateSource(product.expireDateSource);
+      setManualExpireDate(
+        product.manualExpireDate ? new Date(product.manualExpireDate) : null
+      );
+    } catch (error) {
+      setLoadErrorMessage(
+        error instanceof ApiError ? error.message : "Ürün yüklenirken bir hata oluştu."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token, id]);
 
   useEffect(() => {
-    (async () => {
-      if (!token || !id) return;
-      try {
-        const { product } = await getProduct(token, id);
-        setName(product.name);
-        setQuantity(String(product.quantity));
-        setUnit(product.unit as (typeof UNITS)[number]);
-        setExpireDateSource(product.expireDateSource);
-        setManualExpireDate(
-          product.manualExpireDate ? new Date(product.manualExpireDate) : null
-        );
-      } catch (error) {
-        setErrorMessage(
-          error instanceof ApiError ? error.message : "Ürün yüklenirken bir hata oluştu."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [token, id]);
+    load();
+  }, [load]);
 
   function bumpQuantity(direction: 1 | -1) {
     const step = unit === "adet" ? 1 : 0.1;
@@ -141,42 +159,58 @@ export default function EditProductScreen() {
     );
   }
 
+  if (loadErrorMessage) {
+    return (
+      <View className="flex-1 items-center justify-center gap-3 px-6 bg-white dark:bg-[#0B1220]">
+        <Text className="text-ink-muted dark:text-slate-400 text-center">{loadErrorMessage}</Text>
+        <Pressable onPress={load} className="active:opacity-70">
+          <Text className="text-brand-green font-semibold">Tekrar dene</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       className="flex-1 bg-white dark:bg-[#0B1220] px-6 pt-6">
-      <Text className="text-slate-900 dark:text-white font-semibold text-lg capitalize mb-4">
+      <Text className="text-ink dark:text-white font-semibold text-lg capitalize mb-4">
         {name}
       </Text>
 
       <View className="gap-4">
         <View>
-          <Text className="text-slate-600 dark:text-slate-400 mb-1 text-sm">Miktar</Text>
+          <Text className="text-ink-muted dark:text-slate-400 mb-1 text-sm">Miktar</Text>
           <View className="flex-row items-center gap-2">
             <Pressable
               onPress={() => bumpQuantity(-1)}
+              accessibilityRole="button"
+              accessibilityLabel="Miktarı azalt"
               className="items-center justify-center rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 active:opacity-70"
               style={{ width: 44, height: 52 }}>
-              <Text className="text-slate-600 dark:text-slate-300 text-xl font-semibold">−</Text>
+              <Text className="text-ink-muted dark:text-slate-400 text-xl font-semibold">−</Text>
             </Pressable>
             <TextInput
               value={quantity}
               onChangeText={setQuantity}
               keyboardType="decimal-pad"
-              className="flex-1 border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-slate-900 dark:text-white bg-slate-50 dark:bg-white/5 text-center"
+              accessibilityLabel="Miktar"
+              className="flex-1 border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-ink dark:text-white bg-slate-50 dark:bg-white/5 text-center"
               style={{ height: 52, paddingVertical: 0 }}
             />
             <Pressable
               onPress={() => bumpQuantity(1)}
+              accessibilityRole="button"
+              accessibilityLabel="Miktarı artır"
               className="items-center justify-center rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 active:opacity-70"
               style={{ width: 44, height: 52 }}>
-              <Text className="text-slate-600 dark:text-slate-300 text-xl font-semibold">+</Text>
+              <Text className="text-ink-muted dark:text-slate-400 text-xl font-semibold">+</Text>
             </Pressable>
           </View>
         </View>
 
         <View>
-          <Text className="text-slate-600 dark:text-slate-400 mb-1 text-sm">Birim</Text>
+          <Text className="text-ink-muted dark:text-slate-400 mb-1 text-sm">Birim</Text>
           <View className="flex-row gap-2">
             {UNITS.map((option) => (
               <Pressable
@@ -191,7 +225,7 @@ export default function EditProductScreen() {
                   className={
                     unit === option
                       ? "text-white font-semibold"
-                      : "text-slate-600 dark:text-slate-300"
+                      : "text-ink-muted dark:text-slate-400"
                   }>
                   {option}
                 </Text>
@@ -201,11 +235,11 @@ export default function EditProductScreen() {
         </View>
 
         <View>
-          <Text className="text-slate-600 dark:text-slate-400 mb-1 text-sm">Son kullanma tarihi</Text>
+          <Text className="text-ink-muted dark:text-slate-400 mb-1 text-sm">Son kullanma tarihi</Text>
           <Pressable
             onPress={() => setShowDatePicker(true)}
             className="border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 bg-slate-50 dark:bg-white/5 active:opacity-70">
-            <Text className="text-slate-900 dark:text-white">
+            <Text className="text-ink dark:text-white">
               {manualExpireDate
                 ? formatDate(manualExpireDate)
                 : expireDateSource === "estimated"
@@ -221,7 +255,7 @@ export default function EditProductScreen() {
         </View>
 
         {errorMessage ? (
-          <Text className="text-red-600 text-sm text-center">{errorMessage}</Text>
+          <Text className="text-red-600 dark:text-red-400 text-sm text-center">{errorMessage}</Text>
         ) : null}
 
         <Pressable
