@@ -24,10 +24,10 @@ import { DefaultTabHeaderRight } from "@/components/TabHeaderActions";
 import { useAuth } from "@/context/AuthContext";
 import { useThemePreference } from "@/context/ThemeContext";
 import { useWasteScore } from "@/context/WasteScoreContext";
-import { ApiError, deleteProduct, getProducts, type Product } from "@/lib/api";
+import { ApiError, deleteProduct, getProducts, getRunningLowProducts, type Product } from "@/lib/api";
 import { categorizeProduct } from "@/lib/categorize";
 import { KILER_MOOD_IMAGES } from "@/lib/lyxMoodImages";
-import { syncExpiryNotifications } from "@/lib/notifications";
+import { syncExpiryNotifications, syncRunningLowNotifications } from "@/lib/notifications";
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
 
 type SortBy = "recent" | "name" | "expiry" | "category";
@@ -148,6 +148,20 @@ export default function PantryScreen() {
           error instanceof ApiError ? error.message : "Ürünler yüklenirken bir hata oluştu."
         );
       } finally {
+        // Tükenmek Üzere bildirimleri önceden yalnızca Panel'e ve
+        // "Tükenmek Üzere" alt ekranına girildiğinde senkronize ediliyordu —
+        // kullanıcı sadece Kiler'i (uygulamanın en çok kullanılan ekranı)
+        // açıp diğer sekmelere hiç uğramazsa bu bildirim asla kurulmuyordu.
+        // Await edilmeden (fire-and-forget) tetiklenir: yukarıdaki asıl
+        // ürün yükleme/hata durumunu etkilemesin, sadece kendi hatasını
+        // (varsa) konsola loglasın.
+        if (token) {
+          getRunningLowProducts(token)
+            .then(({ products: runningLow }) => syncRunningLowNotifications(runningLow))
+            .catch((error) =>
+              console.warn("Tükenmek üzere bildirimleri senkronize edilemedi:", error)
+            );
+        }
         setIsLoading(false);
         setIsRefreshing(false);
       }
