@@ -5,7 +5,7 @@ import { useThemePreference } from "@/context/ThemeContext";
 // Backend'deki config.EXPIRING_SOON_DAYS ile senkron tutulmalı (bkz.
 // receipt-ai/config.js) — ileride tek bir kaynağa (ör. bir /config endpoint'i)
 // taşınabilir, şimdilik iki tarafta da aynı sabit tekrarlanıyor.
-const EXPIRING_SOON_DAYS = 3;
+export const EXPIRING_SOON_DAYS = 3;
 
 // Ham milisaniye farkını 24 saate bölüp yuvarlamak yanlış sonuç verir — bu,
 // şu andan itibaren 24 saatlik kayan bir pencere hesaplar, takvim günü değil.
