@@ -80,27 +80,20 @@ describe("createLineBasedParser - noise filtering", () => {
     expect(parse(noise)).toEqual([]);
   });
 
-  // --- BUG (see AUDIT_BACKEND.md, Correctness #C3) ------------------------
+  // --- Regression coverage for AUDIT_BACKEND.md Correctness #C3 -----------
   // genericIgnorePatterns.js consistently spells its patterns with an ASCII
   // fallback -- /TE(Ş|S)EKK(Ü|U)R/, /KAS(İ|I)YER/, /^SATI(Ş|S)\b/ and ~30 more
-  // -- because Vision OCR routinely returns "S" for "Ş". Exactly two patterns
-  // forgot to: /A\.?\s?Ş\.?\s*$/ (line 8) and /LTD\.?\s*Ş(Tİ|TI)\.?/ (line 9).
-  // isIgnored() also tests the RAW line, never normalizeText(line), so there is
-  // no second chance. Result: an OCR'd company-title line leaks into the pantry
-  // as a product. These two tests assert the CURRENT BROKEN behaviour and will
-  // fail (telling you to update them) once the patterns are fixed.
-  it("BUG: an ASCII-OCR'd 'A.S.' company title leaks in as a product", () => {
-    expect(parse("ORNEK GIDA A.S.")).toEqual([
-      { name: "ornek gıda a s", quantity: 1, unit: "adet" },
-    ]);
-    // The Turkish spelling on the very same line is filtered correctly.
+  // -- because Vision OCR routinely returns "S" for "Ş". Two patterns used to
+  // be missing that alternation, and isIgnored() used to test the RAW line
+  // instead of normalizeText(line). Both are now fixed: the two patterns
+  // accept either spelling, and isIgnored() normalizes first.
+  it("filters an ASCII-OCR'd 'A.S.' company title (both spellings)", () => {
+    expect(parse("ORNEK GIDA A.S.")).toEqual([]);
     expect(parse("ORNEK GIDA A.Ş.")).toEqual([]);
   });
 
-  it("BUG: an ASCII-OCR'd 'LTD. STI.' company title leaks in as a product", () => {
-    expect(parse("LTD. STI.")).toEqual([
-      { name: "ltd stı", quantity: 1, unit: "adet" },
-    ]);
+  it("filters an ASCII-OCR'd 'LTD. STI.' company title (both spellings)", () => {
+    expect(parse("LTD. STI.")).toEqual([]);
     expect(parse("LTD. ŞTİ.")).toEqual([]);
   });
 

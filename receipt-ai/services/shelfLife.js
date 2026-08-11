@@ -63,18 +63,38 @@ function normalizeProductName(name) {
     .trim();
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// \b...\b ile kelime sınırlı eşleşme: "karabiber" içindeki "biber"i, "somun
+// ekmek" içindeki "un"u ya da "tuzlu kraker" içindeki "tuz"u YAKALAMAZ (bu
+// alt-dizgeler bir kelimenin ortasında/başında geçiyor, kendi başlarına bir
+// kelime değiller) — ama "1 kg domates" gibi fazladan kelime içeren
+// isimlerdeki "domates"i doğru şekilde yakalar. Tablo tek seferde, modül
+// yüklenirken derleniyor.
+const SHELF_LIFE_PATTERNS = Object.keys(shelfLifeMap).map((key) => ({
+  key,
+  pattern: new RegExp(`\\b${escapeRegExp(key)}\\b`),
+}));
+
 // ÖNEMLİ: async — sabit listede (shelfLifeMap) eşleşme bulunamayan ürünler
 // için AI'ya danışılır (bkz. shelfLifeAi.js). Bilinen temel ürünler için
 // anında/ücretsiz döner, AI'ya sadece emin olunamadığında gidilir.
 async function getEstimatedShelfLifeDays(productName) {
   const normalizedName = normalizeProductName(productName);
 
-  if (shelfLifeMap[normalizedName]) {
+  // Object.hasOwn (Object.prototype üzerindeki miras alınmış "constructor",
+  // "__proto__" gibi adları değil, sadece tablonun KENDİ anahtarlarını)
+  // kontrol eder — düz `shelfLifeMap[normalizedName]` böyle bir üründe
+  // (ör. adı "constructor" olan bir ürün) prototip zincirinde gezip bir
+  // fonksiyon/obje döndürüp addDaysToDate'i Invalid Date'e düşürebilirdi.
+  if (Object.hasOwn(shelfLifeMap, normalizedName)) {
     return shelfLifeMap[normalizedName];
   }
 
-  for (const key of Object.keys(shelfLifeMap)) {
-    if (normalizedName.includes(key)) {
+  for (const { key, pattern } of SHELF_LIFE_PATTERNS) {
+    if (pattern.test(normalizedName)) {
       return shelfLifeMap[key];
     }
   }
@@ -111,11 +131,20 @@ async function buildExpireInfo(productName, manualExpireDate = null) {
   const estimatedExpireDate = addDaysToDate(new Date(), estimatedShelfLifeDays);
 
   if (manualExpireDate) {
+    const parsedManualDate = new Date(manualExpireDate);
+    // PATCH /:id ve PATCH /:id/manual-expire-date bu doğrulamayı zaten
+    // yapıyordu; POST / ve POST /bulk (buildProductInput üzerinden buraya
+    // düşüyor) yapmıyordu — aynı geçersiz tarih (ör. "not-a-date"), ürünü
+    // NASIL oluşturduğuna göre kabul edilip edilmemesi tutarsızdı.
+    if (Number.isNaN(parsedManualDate.getTime())) {
+      throw Object.assign(new Error("Geçersiz tarih formatı."), { status: 400 });
+    }
+
     return {
       estimatedShelfLifeDays,
       estimatedExpireDate,
-      manualExpireDate: new Date(manualExpireDate),
-      effectiveExpireDate: new Date(manualExpireDate),
+      manualExpireDate: parsedManualDate,
+      effectiveExpireDate: parsedManualDate,
       expireDateSource: "manual",
     };
   }

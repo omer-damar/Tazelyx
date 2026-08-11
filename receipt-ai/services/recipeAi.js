@@ -100,6 +100,22 @@ async function generateRecipeSuggestions(prompt) {
   return parsed;
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// name'in text içinde TAM KELİME (ya da kelime öbeği) olarak geçip
+// geçmediğini kontrol eder — alt-dizge olarak değil. Bu, "su" (temel
+// malzeme) anahtarının "sucuk"/"susam"/"sumak" gibi alakasız kelimelerin
+// İÇİNDE yakalanmasını engelliyor. Bilinen tek istisna: "su bardağı" gibi
+// çok yaygın bir Türk mutfağı ölçü birimi de kelime olarak "su" içeriyor —
+// bu durumda "su" gerçekten bir kelime olarak geçtiği için (ölçü birimi
+// olsa bile) staple sayılması kabul edilebilir bir sınır durumu, derin bir
+// birim ayrıştırması bu projenin kapsamı dışında.
+function nameAppearsAsWholeWord(text, name) {
+  return new RegExp(`\\b${escapeRegExp(name)}\\b`).test(text);
+}
+
 // AI'ya "sadece kilerdekileri kullan" desek de, modeller bazen elimizde
 // olmayan bir malzemeyi (ör. "1 adet limon") tarife dahil edebiliyor. Prompt
 // tek başına yeterli bir güvence değil; bu yüzden dönen her tarifin
@@ -108,15 +124,18 @@ async function generateRecipeSuggestions(prompt) {
 function ingredientIsAvailable(ingredientText, normalizedProductNames) {
   const normalizedIngredient = normalizeProductName(ingredientText);
 
-  const isStaple = config.BASIC_PANTRY_STAPLES.some(
-    (staple) => normalizedIngredient.includes(staple)
+  const isStaple = config.BASIC_PANTRY_STAPLES.some((staple) =>
+    nameAppearsAsWholeWord(normalizedIngredient, staple)
   );
   if (isStaple) return true;
 
-  return normalizedProductNames.some(
-    (productName) =>
-      normalizedIngredient.includes(productName) ||
-      productName.includes(normalizedIngredient)
+  // Sadece TEK yön: kilerdeki ürün adı, malzeme metninde tam kelime(ler)
+  // olarak geçmeli. Ters yön (malzeme, kilerdeki ürünün İÇİNDE geçiyor mu)
+  // BİLEREK kaldırıldı — "salça" gibi kısa/genel bir malzemeyi "domates
+  // salçası" gibi çok daha spesifik bir kiler ürünü üzerinden yetkilendirmek
+  // yanlış pozitif üretiyordu.
+  return normalizedProductNames.some((productName) =>
+    nameAppearsAsWholeWord(normalizedIngredient, productName)
   );
 }
 

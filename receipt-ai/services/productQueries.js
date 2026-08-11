@@ -1,17 +1,19 @@
 const mongoose = require("mongoose");
 const Product = require("../models/Product");
+const { startOfToday } = require("./shelfLife");
 
 // Bu sorgu, routes/products.js (usable-for-recipes uç noktası) ve
 // routes/recipes.js tarafından ortak kullanılır — mantığın iki yerde ayrı
 // ayrı yazılmasını önler.
 async function getUsableForRecipeProducts(userId) {
-  const now = new Date();
-
-  // Miktarı 0 veya daha az olan ürünler tarif önerisine dahil edilmez —
-  // tüketilmiş/bitmiş bir ürün kilerde "kullanılabilir" sayılmaz.
+  // Alt sınır olarak `now` DEĞİL `startOfToday()` kullanılır — aynı gerekçe
+  // shelfLife.js'te ayrıntılı açıklanıyor: effectiveExpireDate, ürünün
+  // kaydedildiği saati miras alıyor, bu yüzden "bugün bozulan" bir ürün o
+  // saat geçer geçmez `now`'a göre "süresi geçmiş" sayılıp tarif önerisinden
+  // sessizce düşerdi — tam da uygulamanın onu kullanmayı önermesi gereken anda.
   return Product.find({
     userId,
-    effectiveExpireDate: { $ne: null, $gte: now },
+    effectiveExpireDate: { $ne: null, $gte: startOfToday() },
     quantity: { $gt: 0 },
   }).sort({ effectiveExpireDate: 1 });
 }

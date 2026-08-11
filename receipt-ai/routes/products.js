@@ -78,7 +78,20 @@ router.get("/", async (req, res) => {
 // Bozulmaya yaklaşan ürünleri getiriyoruz
 router.get("/expiring-soon", async (req, res) => {
   try {
-    const days = parseInt(req.query.days) || config.EXPIRING_SOON_DAYS;
+    // `parseInt(...) || DEFAULT` deseni iki ayrı sorunluydu: ?days=0
+    // (falsy) sessizce varsayılana düşüyordu ("bugün" isteyen bir kullanıcı
+    // 3 gün alıyordu), ve ?days=1e9 gibi aşırı büyük bir değer setDate'i
+    // taşırıp Invalid Date → Mongoose CastError → 500'e yol açıyordu.
+    let days = config.EXPIRING_SOON_DAYS;
+    if (req.query.days !== undefined) {
+      const parsedDays = Number(req.query.days);
+      if (!Number.isFinite(parsedDays) || parsedDays < 0 || parsedDays > 365) {
+        return res.status(400).json({
+          message: "days parametresi 0 ile 365 arasında bir sayı olmalı.",
+        });
+      }
+      days = parsedDays;
+    }
 
     const now = new Date();
     const futureDate = new Date();
@@ -213,6 +226,13 @@ router.get("/summary-by-name", async (req, res) => {
 async function buildProductInput({ name, quantity, unit, manualExpireDate }) {
   if (!name || quantity === undefined || !unit) {
     throw Object.assign(new Error("name, quantity ve unit alanları gerekli."), { status: 400 });
+  }
+
+  // `!name` sadece boş/undefined'ı eler, TİPİNİ kontrol etmez — {"name": 123}
+  // buradan geçip cleanDisplayName(123) içinde name.replace çağrılınca
+  // TypeError fırlatıp 500'e dönüşürdü (istemci hatası olmasına rağmen).
+  if (typeof name !== "string" || !name.trim()) {
+    throw Object.assign(new Error("name bir metin olmalı."), { status: 400 });
   }
 
   if (typeof quantity !== "number" || quantity < 0) {
