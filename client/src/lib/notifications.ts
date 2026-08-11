@@ -241,8 +241,14 @@ function summarizeTrigger(trigger: unknown): string {
   if (t.type === "date" && typeof t.value === "number") {
     return new Date(t.value).toLocaleString("tr-TR");
   }
+  // Android bir DATE tetikleyicisini "timeInterval"e (o ana kadar kalan
+  // saniye) çeviriyor — bu değer sorgulandığı ana göre yeniden hesaplanıyor,
+  // bu yüzden ham hâliyle okunaklı değil; tahmini duvar saatine çeviriyoruz.
   if (t.type === "timeInterval" && typeof t.seconds === "number") {
-    return `${t.seconds} sn sonra${t.repeats ? " (tekrarlı)" : ""}`;
+    const estimatedFireTime = new Date(Date.now() + t.seconds * 1000);
+    const minutes = Math.round(t.seconds / 60);
+    const remaining = minutes < 60 ? `${minutes} dk sonra` : `${Math.round(minutes / 60)} sa sonra`;
+    return `${remaining}, ~${estimatedFireTime.toLocaleString("tr-TR")}${t.repeats ? " (tekrarlı)" : ""}`;
   }
   return JSON.stringify(t);
 }
