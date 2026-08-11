@@ -60,37 +60,42 @@ export default function AddProductScreen() {
       className="flex-1 bg-white dark:bg-[#0B1220] px-6 pt-6">
       <View className="gap-4">
         <View>
-          <Text className="text-slate-600 dark:text-slate-400 mb-1 text-sm">Ürün adı</Text>
+          <Text className="text-ink-muted dark:text-slate-400 mb-1 text-sm">Ürün adı</Text>
           <TextInput
             value={name}
             onChangeText={setName}
             placeholder="ör. Süt"
             placeholderTextColor="#94a3b8"
-            className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-slate-900 dark:text-white bg-slate-50 dark:bg-white/5"
+            accessibilityLabel="Ürün adı"
+            className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-ink dark:text-white bg-slate-50 dark:bg-white/5"
             style={{ height: 52, paddingVertical: 0 }}
           />
         </View>
 
         <View>
-          <Text className="text-slate-600 dark:text-slate-400 mb-1 text-sm">Miktar</Text>
+          <Text className="text-ink-muted dark:text-slate-400 mb-1 text-sm">Miktar</Text>
           <TextInput
             value={quantity}
             onChangeText={setQuantity}
             placeholder="ör. 1.5"
             placeholderTextColor="#94a3b8"
             keyboardType="decimal-pad"
-            className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-slate-900 dark:text-white bg-slate-50 dark:bg-white/5"
+            accessibilityLabel="Miktar"
+            className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-ink dark:text-white bg-slate-50 dark:bg-white/5"
             style={{ height: 52, paddingVertical: 0 }}
           />
         </View>
 
         <View>
-          <Text className="text-slate-600 dark:text-slate-400 mb-1 text-sm">Birim</Text>
+          <Text className="text-ink-muted dark:text-slate-400 mb-1 text-sm">Birim</Text>
           <View className="flex-row gap-2">
             {UNITS.map((option) => (
               <Pressable
                 key={option}
                 onPress={() => setUnit(option)}
+                accessibilityRole="radio"
+                accessibilityLabel={option}
+                accessibilityState={{ checked: unit === option }}
                 className={`flex-1 items-center py-3 rounded-xl border ${
                   unit === option
                     ? "bg-brand-green border-brand-green"
@@ -100,7 +105,7 @@ export default function AddProductScreen() {
                   className={
                     unit === option
                       ? "text-white font-semibold"
-                      : "text-slate-600 dark:text-slate-300"
+                      : "text-ink-muted dark:text-slate-300"
                   }>
                   {option}
                 </Text>
@@ -116,6 +121,9 @@ export default function AddProductScreen() {
         <Pressable
           onPress={handleSubmit}
           disabled={isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel="Ürünü ekle"
+          accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
           className="bg-brand-green rounded-xl py-4 items-center mt-2 active:opacity-80 disabled:opacity-60">
           {isSubmitting ? (
             <ActivityIndicator color="white" />

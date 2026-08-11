@@ -213,17 +213,17 @@ export default function UploadReceiptScreen() {
         left={<LyxMascot moodImages={TARA_MOOD_IMAGES} score={wasteScore} />}
         right={<UploadTabHeaderRight />}
       />
-      <SafeAreaView edges={["bottom"]} className="flex-1 bg-slate-50 dark:bg-[#0B1220]">
+      <SafeAreaView edges={["bottom"]} className="flex-1 bg-surface dark:bg-[#0B1220]">
       <ScrollView className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
         {savedCount !== null ? (
           <View className="bg-white dark:bg-[#151F2E] rounded-2xl border border-slate-100 dark:border-white/10 p-5">
             <View className="items-center mb-3">
               <Ionicons name="checkmark-circle" size={48} color="#047857" />
             </View>
-            <Text className="text-slate-900 dark:text-white font-semibold text-lg text-center mb-1">
+            <Text className="text-ink dark:text-white font-semibold text-lg text-center mb-1">
               Kilere eklendi
             </Text>
-            <Text className="text-slate-500 dark:text-slate-400 text-center text-sm mb-4">
+            <Text className="text-ink-muted dark:text-slate-400 text-center text-sm mb-4">
               {savedCount} ürün kilerine eklendi.
             </Text>
             <Pressable
@@ -231,11 +231,17 @@ export default function UploadReceiptScreen() {
                 resetAll();
                 router.navigate("/(app)/(tabs)");
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Kilere git"
               className="bg-brand-green rounded-xl py-4 items-center active:opacity-80">
               <Text className="text-white text-base font-semibold">Kilere Git</Text>
             </Pressable>
-            <Pressable onPress={resetAll} className="items-center py-3 active:opacity-70">
-              <Text className="text-slate-500 dark:text-slate-400">Başka bir fiş yükle</Text>
+            <Pressable
+              onPress={resetAll}
+              accessibilityRole="button"
+              accessibilityLabel="Başka bir fiş yükle"
+              className="items-center py-3 active:opacity-70">
+              <Text className="text-ink-muted dark:text-slate-400">Başka bir fiş yükle</Text>
             </Pressable>
           </View>
         ) : reviewItems ? (
@@ -245,15 +251,15 @@ export default function UploadReceiptScreen() {
                 <View className="w-20 h-20 rounded-full bg-amber-50 dark:bg-amber-500/10 items-center justify-center">
                   <Ionicons name="alert-circle-outline" size={36} color="#D97706" />
                 </View>
-                <Text className="text-slate-900 dark:text-white font-semibold text-base text-center">
+                <Text className="text-ink dark:text-white font-semibold text-base text-center">
                   Fişten hiçbir ürün okunamadı
                 </Text>
-                <Text className="text-slate-500 dark:text-slate-400 text-center">
+                <Text className="text-ink-muted dark:text-slate-400 text-center">
                   Fotoğraf net değilse tekrar dener, ya da aşağıdan ürünleri elle ekleyebilirsin.
                 </Text>
               </View>
             ) : (
-              <Text className="text-slate-500 dark:text-slate-400 text-sm mb-3">
+              <Text className="text-ink-muted dark:text-slate-400 text-sm mb-3">
                 Kilere eklemek istemediğin ürünlerin işaretini kaldır, istersen ürün bazlı son
                 kullanma tarihi gir.
               </Text>
@@ -266,6 +272,9 @@ export default function UploadReceiptScreen() {
                 <Pressable
                   onPress={() => toggleSelected(item.id)}
                   hitSlop={8}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: item.selected }}
+                  accessibilityLabel={`${item.name}${item.selected ? "" : ", seçili değil"}`}
                   className={`w-6 h-6 rounded-md border-2 items-center justify-center mr-3 ${
                     item.selected ? "bg-brand-green border-brand-green" : "border-slate-300 dark:border-slate-600"
                   }`}>
@@ -275,14 +284,14 @@ export default function UploadReceiptScreen() {
                 <View className="flex-1 pr-2">
                   <Text
                     className={`font-semibold text-base capitalize ${
-                      item.selected ? "text-slate-900 dark:text-white" : "text-slate-400 dark:text-slate-600"
+                      item.selected ? "text-ink dark:text-white" : "text-slate-400 dark:text-slate-600"
                     }`}>
                     {item.name}
                   </Text>
                   <Text
                     className={
                       item.selected
-                        ? "text-slate-500 dark:text-slate-400 text-sm"
+                        ? "text-ink-muted dark:text-slate-400 text-sm"
                         : "text-slate-300 dark:text-slate-700 text-sm"
                     }>
                     {item.quantity} {item.unit}
@@ -292,8 +301,12 @@ export default function UploadReceiptScreen() {
                 <Pressable
                   onPress={() => setDatePickerForId(item.id)}
                   disabled={!item.selected}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.name} için son kullanma tarihi ${
+                    item.manualExpireDate ? formatDate(item.manualExpireDate) : "gir"
+                  }`}
                   className="border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 active:opacity-70 disabled:opacity-40">
-                  <Text className="text-slate-600 dark:text-slate-300 text-xs">
+                  <Text className="text-ink-muted dark:text-slate-300 text-xs">
                     {item.manualExpireDate ? formatDate(item.manualExpireDate) : "Tarih Gir"}
                   </Text>
                 </Pressable>
@@ -302,6 +315,8 @@ export default function UploadReceiptScreen() {
 
             <Pressable
               onPress={openManualItemForm}
+              accessibilityRole="button"
+              accessibilityLabel="Okunmayan bir ürünü elle ekle"
               className="flex-row items-center justify-center gap-2 border border-dashed border-slate-300 dark:border-white/20 rounded-2xl py-3 mb-3 active:opacity-70">
               <Ionicons name="add-circle-outline" size={18} color="#047857" />
               <Text className="text-brand-green font-semibold">
@@ -317,6 +332,9 @@ export default function UploadReceiptScreen() {
               <Pressable
                 onPress={handleSaveSelected}
                 disabled={isSaving}
+                accessibilityRole="button"
+                accessibilityLabel="Seçilenleri kilere ekle"
+                accessibilityState={{ disabled: isSaving, busy: isSaving }}
                 className="bg-brand-green rounded-xl py-4 items-center mt-2 active:opacity-80 disabled:opacity-60">
                 {isSaving ? (
                   <ActivityIndicator color="white" />
@@ -327,8 +345,12 @@ export default function UploadReceiptScreen() {
                 )}
               </Pressable>
             ) : null}
-            <Pressable onPress={resetAll} className="items-center py-3 active:opacity-70">
-              <Text className="text-slate-500 dark:text-slate-400">Vazgeç</Text>
+            <Pressable
+              onPress={resetAll}
+              accessibilityRole="button"
+              accessibilityLabel="Vazgeç"
+              className="items-center py-3 active:opacity-70">
+              <Text className="text-ink-muted dark:text-slate-400">Vazgeç</Text>
             </Pressable>
           </>
         ) : (
@@ -352,12 +374,16 @@ export default function UploadReceiptScreen() {
               <View className="flex-row gap-3 mt-4 w-full">
                 <Pressable
                   onPress={pickFromCamera}
+                  accessibilityRole="button"
+                  accessibilityLabel="Kamera ile fiş fotoğrafı çek"
                   className="flex-1 flex-row items-center justify-center gap-2 border border-brand-green rounded-xl py-3 active:opacity-70">
                   <Ionicons name="camera-outline" size={18} color="#047857" />
                   <Text className="text-brand-green font-semibold">Kamera</Text>
                 </Pressable>
                 <Pressable
                   onPress={pickFromLibrary}
+                  accessibilityRole="button"
+                  accessibilityLabel="Galeriden fiş fotoğrafı seç"
                   className="flex-1 flex-row items-center justify-center gap-2 border border-brand-green rounded-xl py-3 active:opacity-70">
                   <Ionicons name="images-outline" size={18} color="#047857" />
                   <Text className="text-brand-green font-semibold">Galeri</Text>
@@ -372,6 +398,9 @@ export default function UploadReceiptScreen() {
             <Pressable
               onPress={handleUpload}
               disabled={!image || isUploading}
+              accessibilityRole="button"
+              accessibilityLabel="Fişi yükle"
+              accessibilityState={{ disabled: !image || isUploading, busy: isUploading }}
               className="bg-brand-green rounded-xl py-4 items-center mt-5 active:opacity-80 disabled:opacity-40">
               {isUploading ? (
                 <View className="flex-row items-center gap-2">
@@ -398,7 +427,7 @@ export default function UploadReceiptScreen() {
             <View className="items-center py-2">
               <View className="w-10 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
             </View>
-            <Text className="text-slate-900 dark:text-white font-semibold text-base text-center mb-2">
+            <Text className="text-ink dark:text-white font-semibold text-base text-center mb-2">
               {editingItem?.name} — son kullanma tarihi
             </Text>
             <DateTimePicker
@@ -415,6 +444,8 @@ export default function UploadReceiptScreen() {
             {Platform.OS === "ios" ? (
               <Pressable
                 onPress={() => setDatePickerForId(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Tamam"
                 className="bg-brand-green rounded-xl py-4 items-center mt-2 active:opacity-80">
                 <Text className="text-white text-base font-semibold">Tamam</Text>
               </Pressable>
@@ -435,7 +466,7 @@ export default function UploadReceiptScreen() {
             <View className="items-center py-2">
               <View className="w-10 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
             </View>
-            <Text className="text-slate-900 dark:text-white font-semibold text-base text-center mb-4">
+            <Text className="text-ink dark:text-white font-semibold text-base text-center mb-4">
               Ürünü elle ekle
             </Text>
 
@@ -445,7 +476,8 @@ export default function UploadReceiptScreen() {
                 onChangeText={setManualName}
                 placeholder="Ürün adı"
                 placeholderTextColor="#94a3b8"
-                className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-slate-900 dark:text-white bg-slate-50 dark:bg-white/5"
+                accessibilityLabel="Ürün adı"
+                className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-ink dark:text-white bg-slate-50 dark:bg-white/5"
                 style={{ height: 52, paddingVertical: 0 }}
               />
               <TextInput
@@ -454,7 +486,8 @@ export default function UploadReceiptScreen() {
                 placeholder="Miktar (ör. 1.5)"
                 placeholderTextColor="#94a3b8"
                 keyboardType="decimal-pad"
-                className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-slate-900 dark:text-white bg-slate-50 dark:bg-white/5"
+                accessibilityLabel="Miktar"
+                className="border border-slate-200 dark:border-white/10 rounded-xl px-4 text-base text-ink dark:text-white bg-slate-50 dark:bg-white/5"
                 style={{ height: 52, paddingVertical: 0 }}
               />
               <View className="flex-row gap-2">
@@ -462,6 +495,9 @@ export default function UploadReceiptScreen() {
                   <Pressable
                     key={option}
                     onPress={() => setManualUnit(option)}
+                    accessibilityRole="radio"
+                    accessibilityLabel={option}
+                    accessibilityState={{ checked: manualUnit === option }}
                     className={`flex-1 items-center py-3 rounded-xl border ${
                       manualUnit === option
                         ? "bg-brand-green border-brand-green"
@@ -471,7 +507,7 @@ export default function UploadReceiptScreen() {
                       className={
                         manualUnit === option
                           ? "text-white font-semibold"
-                          : "text-slate-600 dark:text-slate-300"
+                          : "text-ink-muted dark:text-slate-300"
                       }>
                       {option}
                     </Text>
@@ -486,13 +522,17 @@ export default function UploadReceiptScreen() {
 
             <Pressable
               onPress={handleAddManualItem}
+              accessibilityRole="button"
+              accessibilityLabel="Listeye ekle"
               className="bg-brand-green rounded-xl py-4 items-center mt-4 active:opacity-80">
               <Text className="text-white text-base font-semibold">Listeye Ekle</Text>
             </Pressable>
             <Pressable
               onPress={() => setIsAddingManualItem(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Vazgeç"
               className="items-center py-3 active:opacity-70">
-              <Text className="text-slate-500 dark:text-slate-400">Vazgeç</Text>
+              <Text className="text-ink-muted dark:text-slate-400">Vazgeç</Text>
             </Pressable>
           </View>
         </KeyboardAvoidingView>

@@ -89,6 +89,9 @@ export default function SettingsScreen() {
             <Pressable
               key={option.value}
               onPress={() => setPreference(option.value)}
+              accessibilityRole="radio"
+              accessibilityLabel={option.label}
+              accessibilityState={{ checked: preference === option.value }}
               className={`flex-row items-center px-4 py-3.5 active:opacity-70 ${
                 index > 0 ? "border-t border-slate-100 dark:border-white/10" : ""
               }`}>
@@ -113,6 +116,8 @@ export default function SettingsScreen() {
         <View className="bg-white dark:bg-[#151F2E] rounded-2xl border border-slate-100/80 dark:border-white/10 overflow-hidden">
           <Pressable
             onPress={handleSignOut}
+            accessibilityRole="button"
+            accessibilityLabel="Çıkış yap"
             className="flex-row items-center px-4 py-3.5 active:opacity-70">
             <Ionicons name="log-out-outline" size={20} color="#6E7A8D" />
             <Text className="flex-1 ml-3 text-ink dark:text-white text-base">Çıkış Yap</Text>
@@ -126,6 +131,9 @@ export default function SettingsScreen() {
         <Pressable
           onPress={handleDeleteAccount}
           disabled={isDeleting}
+          accessibilityRole="button"
+          accessibilityLabel="Hesabımı sil"
+          accessibilityState={{ disabled: isDeleting, busy: isDeleting }}
           className="bg-white dark:bg-[#151F2E] rounded-2xl border border-red-200 dark:border-red-500/20 flex-row items-center px-4 py-3.5 active:opacity-70 disabled:opacity-60">
           {isDeleting ? (
             <ActivityIndicator color="#EF5A5A" />
