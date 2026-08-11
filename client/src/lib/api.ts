@@ -29,18 +29,27 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
 // edip anlaşılır bir hata mesajı veriyoruz.
 const REQUEST_TIMEOUT_MS = 15000;
 
+// /recipes/suggest bir AI çağrısı (backend'de kendi 30 sn'lik zaman aşımı
+// var, bkz. services/recipeAi.js) + ardından her tarif için ayrı bir gerçek-
+// tarif arama isteği (services/recipeSearch.js) yapıyor — sıradan bir CRUD
+// isteğinden çok daha uzun sürebiliyor. Genel 15 sn'lik zaman aşımı bu uçta
+// gerçek kullanımda sürekli tetikleniyordu (bkz. kullanıcı raporu, "Bağlantı
+// zaman aşımına uğradı" — bağlantı değil, istek gerçekten 15 sn'den uzun
+// sürüyordu).
+const AI_REQUEST_TIMEOUT_MS = 45000;
+
 async function apiRequest<T>(
   path: string,
-  options: { method?: string; body?: unknown; token?: string } = {}
+  options: { method?: string; body?: unknown; token?: string; timeoutMs?: number } = {}
 ): Promise<T> {
-  const { method = "GET", body, token } = options;
+  const { method = "GET", body, token, timeoutMs = REQUEST_TIMEOUT_MS } = options;
 
   // AbortSignal.timeout() bir statik factory — Hermes'in bazı sürümlerinde
   // henüz yok, ve varsa/yoksa Jest (Node üzerinde çalışıyor, orada zaten var)
   // bu farkı hiç yakalayamaz. AbortController + setTimeout ikisinde de var
   // olan daha eski/temel API, bu yüzden ona geri dönüyoruz.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
   try {
@@ -227,7 +236,7 @@ export function getRecipeSuggestions(token: string) {
     message: string;
     prioritizedProducts: PrioritizedProduct[];
     recipes: { recipes: Recipe[] };
-  }>("/recipes/suggest", { token });
+  }>("/recipes/suggest", { token, timeoutMs: AI_REQUEST_TIMEOUT_MS });
 }
 
 export type ParsedProduct = { name: string; quantity: number; unit: string };
@@ -309,9 +318,13 @@ export function createProductsBulk(
   token: string,
   products: { name: string; quantity: number; unit: string; manualExpireDate?: string }[]
 ) {
+  // Her ürün için (manuel tarih girilmemişse) sunucu tarafında ayrı bir AI
+  // raf-ömrü tahmini yapılıyor (bkz. routes/products.js > mapWithConcurrency,
+  // en fazla 5 eşzamanlı) — kalabalık bir fişte bu, tek bir CRUD isteğinden
+  // çok daha uzun sürebiliyor.
   return apiRequest<{ message: string; count: number; products: Product[] }>(
     "/products/bulk",
-    { method: "POST", token, body: { products } }
+    { method: "POST", token, body: { products }, timeoutMs: AI_REQUEST_TIMEOUT_MS }
   );
 }
 

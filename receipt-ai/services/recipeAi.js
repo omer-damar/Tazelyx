@@ -116,6 +116,18 @@ function nameAppearsAsWholeWord(text, name) {
   return new RegExp(`\\b${escapeRegExp(name)}\\b`).test(text);
 }
 
+// client/src/lib/categorize.ts'teki SUFFIX_TOLERANCE ile aynı fikir: Türkçe
+// eklemeli bir dil, "salça" tabanı metinde "salçası" (iyelik eki) olarak
+// geçebiliyor — bu ekin sonuna kadar \b...\b ile arasak "salca" ile "salcasi"
+// arasında (aralarında boşluk olmadığı için) hiç kelime sınırı bulunmaz,
+// eşleşme kaçar. 2 karaktere kadar ek toleransı, asıl kelimeyi bozmadan bu
+// yaygın ekleri (-sı/-si/-ı/-i/-lı vb.) yutuyor.
+const SUFFIX_TOLERANCE = 2;
+
+function nameAppearsAsWholeWordWithSuffixTolerance(text, name) {
+  return new RegExp(`\\b${escapeRegExp(name)}\\w{0,${SUFFIX_TOLERANCE}}\\b`).test(text);
+}
+
 // AI'ya "sadece kilerdekileri kullan" desek de, modeller bazen elimizde
 // olmayan bir malzemeyi (ör. "1 adet limon") tarife dahil edebiliyor. Prompt
 // tek başına yeterli bir güvence değil; bu yüzden dönen her tarifin
@@ -129,13 +141,20 @@ function ingredientIsAvailable(ingredientText, normalizedProductNames) {
   );
   if (isStaple) return true;
 
-  // Sadece TEK yön: kilerdeki ürün adı, malzeme metninde tam kelime(ler)
-  // olarak geçmeli. Ters yön (malzeme, kilerdeki ürünün İÇİNDE geçiyor mu)
-  // BİLEREK kaldırıldı — "salça" gibi kısa/genel bir malzemeyi "domates
-  // salçası" gibi çok daha spesifik bir kiler ürünü üzerinden yetkilendirmek
-  // yanlış pozitif üretiyordu.
-  return normalizedProductNames.some((productName) =>
-    nameAppearsAsWholeWord(normalizedIngredient, productName)
+  // İKİ yönlü kontrol: kilerdeki ürün adı malzeme metninde geçiyor mu, YA DA
+  // malzeme metni kilerdeki ürün adının içinde geçiyor mu. Daha önceki bir
+  // düzeltme ters yönü (malzeme, ürünün İÇİNDE mi) "yanlış pozitif" gerekçesiyle
+  // tamamen kaldırmıştı, ama gerçek kullanımda bunun etkisi tam tersiydi:
+  // kiler ürünleri genelde fiş OCR'ından gelen spesifik/markalı isimler
+  // ("domates salçası"), AI'nın yazdığı malzemeler ise genelde kısa/jenerik
+  // terimler ("salça") — ters yön olmadan kilerde gayet mevcut bir ürün bile
+  // tarifi elemeye yetiyordu (bkz. kullanıcı raporu, gerçek cihazda "uygun
+  // tarif bulunamadı"). Tam kelime + ek toleransı zaten "su" → "sucuk" gibi
+  // asılsız alt-dize eşleşmelerini önlüyor, iki yönü birden açmak güvenli.
+  return normalizedProductNames.some(
+    (productName) =>
+      nameAppearsAsWholeWordWithSuffixTolerance(normalizedIngredient, productName) ||
+      nameAppearsAsWholeWordWithSuffixTolerance(productName, normalizedIngredient)
   );
 }
 
