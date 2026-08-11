@@ -51,13 +51,23 @@ function capitalize(name: string) {
 // birbirini iptal eder (Kiler'de SKT senkronu, Tükenmek Üzere'de az önce
 // kurulmuş bildirimleri de silerdi). Her bildirim content.data.type ile
 // etiketlenir; sync fonksiyonları yalnızca kendi türünü iptal eder.
-async function cancelNotificationsByType(type: "expiry" | "running-low") {
+//
+// Bu, o türe ait ESKİ bildirimlerin kimliklerini (identifier) DÖNDÜRÜR,
+// iptal etmez — çağıran taraf önce yeni bildirimleri kurup ANCAK ONDAN
+// SONRA bu kimlikleri iptal etmeli. Aksi halde (ör. "kur, sonra type'a
+// göre sorgula ve iptal et") az önce kurulan YENİ bildirimler de aynı
+// type etiketini taşıdığı için sorguya yakalanıp anında iptal edilir —
+// bu tam olarak yaşanan bug'dı: her senkron, kendi kurduğunu kendi siliyordu.
+async function getScheduledIdsByType(type: "expiry" | "running-low"): Promise<string[]> {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  const toCancel = scheduled.filter((notification) => notification.content.data?.type === type);
+  return scheduled
+    .filter((notification) => notification.content.data?.type === type)
+    .map((notification) => notification.identifier);
+}
+
+async function cancelByIds(identifiers: string[]) {
   await Promise.all(
-    toCancel.map((notification) =>
-      Notifications.cancelScheduledNotificationAsync(notification.identifier)
-    )
+    identifiers.map((identifier) => Notifications.cancelScheduledNotificationAsync(identifier))
   );
 }
 
@@ -100,6 +110,8 @@ export async function syncExpiryNotifications(products: Product[]) {
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== "granted") return;
 
+  const previousIds = await getScheduledIdsByType("expiry");
+
   const now = Date.now();
 
   const prioritizedProducts = products
@@ -137,11 +149,11 @@ export async function syncExpiryNotifications(products: Product[]) {
     }
   }
 
-  // Eski bildirimler YENİLERİ başarıyla kurulduktan SONRA iptal edilir —
-  // sıra tersine çevrilip kurma adımı yarıda bir hataya çarparsa (bu
-  // fonksiyon `await` edilmeden çağrıldığı yerlerde hata sessizce
-  // yutulabiliyordu), kullanıcı elinde hiç bildirim kalmadan kalmasın diye.
-  await cancelNotificationsByType("expiry");
+  // Eski bildirimler (yukarıda YENİLERİ kurulmadan ÖNCE yakalanan kimlikler)
+  // ancak şimdi, kurma adımı başarıyla bittikten SONRA iptal edilir — hem
+  // "kurma yarıda hata verirse eski bildirim kaybolmasın" hem de "az önce
+  // kurduğumuz yeni bildirimleri kendi kendimize silmeyelim" için şart.
+  await cancelByIds(previousIds);
 }
 
 // Backend'in `predictRunningLow`'u (bkz. receipt-ai/services/
@@ -158,8 +170,10 @@ export async function syncRunningLowNotifications(products: RunningLowProduct[])
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== "granted") return;
 
+  const previousIds = await getScheduledIdsByType("running-low");
+
   if (products.length === 0) {
-    await cancelNotificationsByType("running-low");
+    await cancelByIds(previousIds);
     return;
   }
 
@@ -177,13 +191,10 @@ export async function syncRunningLowNotifications(products: RunningLowProduct[])
           return tomorrowMorning;
         })();
 
-  // Önce YENİ bildirimleri kuruyoruz, eskilerini ancak bu başarıyla
-  // bittikten SONRA iptal ediyoruz. Sıra ters olsaydı (önce iptal, sonra
-  // kur) ve kurma adımı yarıda bir hataya çarpsaydı — ki bu fonksiyon
-  // çağrıldığı yerlerde `await` edilmediği için hata sessizce
-  // yutulabiliyordu — kullanıcı elinde hiç bildirim kalmadan kalırdı.
-  // Gerçek bir kullanıcı senaryosunda tam olarak bu yaşandı: 18:00 için
-  // kurulmuş bir bildirim, sonraki bir senkronda sessizce kayboldu.
+  // Önce YENİ bildirimleri kuruyoruz, eskilerini (yukarıda kurmadan ÖNCE
+  // yakalanan kimlikleri) ancak bu başarıyla bittikten SONRA iptal
+  // ediyoruz — hem yarıda hata olursa eski bildirim kaybolmasın hem de az
+  // önce kurduğumuz yenileri kendi kendimize silmeyelim diye.
   await Promise.all(
     products.map((product) =>
       Notifications.scheduleNotificationAsync({
@@ -197,7 +208,7 @@ export async function syncRunningLowNotifications(products: RunningLowProduct[])
     )
   );
 
-  await cancelNotificationsByType("running-low");
+  await cancelByIds(previousIds);
 }
 
 // --- Tanılama araçları -----------------------------------------------
