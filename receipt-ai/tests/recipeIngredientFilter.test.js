@@ -111,20 +111,29 @@ describe("word-boundary staple matching rejects unrelated ingredients", () => {
 });
 
 // --- Regression coverage for AUDIT_BACKEND.md Correctness #C7 (2nd half) --
-// The pantry comparison used to be bidirectional substring matching, which
-// let short pantry names match far too much and let a vague ingredient
-// piggyback on a more specific pantry item via the reverse direction. Now
-// only one direction is checked, and only as a whole word.
-describe("single-direction, whole-word pantry matching", () => {
+// The pantry comparison is bidirectional (product-in-ingredient OR
+// ingredient-in-product), each side checked as a whole word (with a small
+// suffix tolerance for Turkish inflection, see SUFFIX_TOLERANCE). A same-day
+// follow-up session had briefly dropped the reverse direction entirely to
+// chase a theoretical false-positive, but that made the filter reject real,
+// in-stock recipes far more often than before (confirmed by a live bug
+// report: "Panel > Tarifler" started returning "no compliant recipe" for
+// pantries that plainly had the ingredient, just under a more specific
+// name) — the word-boundary tightening was the real fix; dropping the
+// direction entirely was not, so it's restored here.
+describe("bidirectional, whole-word (+ suffix-tolerant) pantry matching", () => {
   it("no longer lets the pantry item 'un' (flour) authorise unrelated words that contain it", () => {
     const r = recipe("X", ["1 somun ekmek", "1 salkım üzüm kurusu"]);
     expect(filter([r], ["un"])).toHaveLength(0);
   });
 
-  it("no longer accepts a bare ingredient word via the reverse direction", () => {
-    // "domates salçası" no longer authorises the bare word "salça".
+  it("accepts a bare, generic ingredient word via a more specific pantry item (reverse direction)", () => {
+    // "domates salçası" (a specific pantry product) satisfies the AI's
+    // more generic "salça" — this is the real-world common case, since
+    // pantry names tend to come from receipt OCR (specific/branded) while
+    // AI-written ingredients tend to be generic.
     const r = recipe("X", ["salça"]);
-    expect(filter([r], ["domates salçası"])).toHaveLength(0);
+    expect(filter([r], ["domates salçası"])).toHaveLength(1);
   });
 
   it("still authorises the exact pantry name appearing as a whole word", () => {
