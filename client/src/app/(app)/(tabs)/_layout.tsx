@@ -68,6 +68,9 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           <Pressable
             key={route.key}
             onPress={onPress}
+            accessibilityRole="tab"
+            accessibilityLabel={config.label}
+            accessibilityState={{ selected: focused }}
             style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
             <View
               style={{

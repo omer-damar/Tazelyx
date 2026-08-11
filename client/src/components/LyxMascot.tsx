@@ -25,7 +25,12 @@ export function LyxMascot({
   const tier = moodTierForScore(score);
 
   return (
-    <Pressable onPress={() => router.push("/(app)/score")} hitSlop={8} className="active:opacity-70">
+    <Pressable
+      onPress={() => router.push("/(app)/score")}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel="İsraf skorunu görüntüle"
+      className="active:opacity-70">
       <Image source={moodImages[tier]} style={{ width: size, height: size }} resizeMode="contain" />
     </Pressable>
   );
