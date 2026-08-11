@@ -6,8 +6,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useThemePreference, type ThemePreference } from "@/context/ThemeContext";
-import { ApiError, deleteAccount } from "@/lib/api";
-import { getNotificationDebugSummary, scheduleTestNotification } from "@/lib/notifications";
+import { ApiError, deleteAccount, getProducts, getRunningLowProducts } from "@/lib/api";
+import {
+  getNotificationDebugSummary,
+  scheduleTestNotification,
+  syncExpiryNotifications,
+  syncRunningLowNotifications,
+} from "@/lib/notifications";
 
 const OPTIONS: { value: ThemePreference; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: "system", label: "Sistem", icon: "phone-portrait-outline" },
@@ -20,6 +25,7 @@ export default function SettingsScreen() {
   const { token, signOut } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [isForceSyncing, setIsForceSyncing] = useState(false);
 
   // Geçici tanılama aracı: tükenmek üzere bildirimlerinin gerçek cihazda
   // neden ateşlenmediğini araştırırken eklendi. Bildirimler saatler sonra
@@ -56,6 +62,49 @@ export default function SettingsScreen() {
       Alert.alert("Hata", error instanceof Error ? error.message : "Test bildirimi kurulamadı.");
     } finally {
       setIsSendingTest(false);
+    }
+  }
+
+  // Kiler/Panel'deki senkron çağrıları "await" edilmeden (fire-and-forget)
+  // tetiklendiği için bir hata olsa bile sadece console.warn'a düşüyor —
+  // telefonun konsoluna canlı erişim olmadığı için o hata görünmez kalıyor.
+  // Bu buton AYNI senkron fonksiyonlarını burada `await` ederek çağırıp
+  // her adımın (veri çekme + iki senkron) sonucunu/hatasını doğrudan ekranda
+  // gösteriyor — asıl "neden hiçbir şey kurulmuyor" sorusuna cevap bulmak için.
+  async function handleForceSyncNow() {
+    if (!token) return;
+    setIsForceSyncing(true);
+    const results: string[] = [];
+    try {
+      const [{ products: allProducts }, { products: runningLow }] = await Promise.all([
+        getProducts(token),
+        getRunningLowProducts(token),
+      ]);
+      results.push(`Kilerden ${allProducts.length} ürün, tahminden ${runningLow.length} ürün çekildi.`);
+
+      try {
+        await syncExpiryNotifications(allProducts);
+        results.push("✓ SKT senkronu tamamlandı.");
+      } catch (error) {
+        results.push(`✗ SKT senkronu HATA verdi: ${error instanceof Error ? error.message : String(error)}`);
+      }
+
+      try {
+        await syncRunningLowNotifications(runningLow);
+        results.push("✓ Tükenmek üzere senkronu tamamlandı.");
+      } catch (error) {
+        results.push(
+          `✗ Tükenmek üzere senkronu HATA verdi: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+
+      const { scheduled } = await getNotificationDebugSummary();
+      results.push(`Şu an kurulu bildirim sayısı: ${scheduled.length}`);
+    } catch (error) {
+      results.push(`✗ Veri çekilemedi: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsForceSyncing(false);
+      Alert.alert("Senkron sonucu", results.join("\n\n"));
     }
   }
 
@@ -170,6 +219,19 @@ export default function SettingsScreen() {
             )}
             <Text className="flex-1 ml-3 text-ink dark:text-white text-base">
               10 sn Sonra Test Bildirimi Gönder
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleForceSyncNow}
+            disabled={isForceSyncing}
+            className="flex-row items-center px-4 py-3.5 border-t border-slate-100 dark:border-white/10 active:opacity-70 disabled:opacity-60">
+            {isForceSyncing ? (
+              <ActivityIndicator color="#6E7A8D" />
+            ) : (
+              <Ionicons name="sync-outline" size={20} color="#6E7A8D" />
+            )}
+            <Text className="flex-1 ml-3 text-ink dark:text-white text-base">
+              Şimdi Senkronize Et (Hatayı Göster)
             </Text>
           </Pressable>
         </View>
