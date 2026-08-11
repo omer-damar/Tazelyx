@@ -78,49 +78,57 @@ describe("filterRecipesToAvailableIngredients - core behaviour", () => {
   });
 });
 
-// --- BUG (see AUDIT_BACKEND.md, Correctness #C7) --------------------------
-// ingredientIsAvailable() tests `normalizedIngredient.includes(staple)` with no
-// word boundary. config.BASIC_PANTRY_STAPLES contains the two-letter word "su",
-// which is a substring of a great many Turkish food words. Any ingredient
-// containing those two letters is waved through as if it were tap water, which
-// defeats the "last line of defence" this filter is documented to be.
-describe("BUG: the two-letter 'su' staple waves through unrelated ingredients", () => {
+// --- Regression coverage for AUDIT_BACKEND.md Correctness #C7 -------------
+// ingredientIsAvailable() now requires the staple/pantry name to appear as a
+// WHOLE WORD, not merely a substring — the two-letter staple "su" (water) no
+// longer waves through unrelated words that merely contain those two letters.
+describe("word-boundary staple matching rejects unrelated ingredients", () => {
   it.each([
     ["200 g sucuk", "sausage"],
     ["1 yemek kaşığı susam", "sesame"],
-    ["1 su bardağı portakal suyu", "orange juice"],
     ["2 adet sumak", "sumac"],
-  ])("accepts %s (%s) with a completely empty pantry", (ingredient) => {
-    expect(filter([recipe("X", [ingredient])], [])).toHaveLength(1);
+  ])("rejects %s (%s) with a completely empty pantry", (ingredient) => {
+    expect(filter([recipe("X", [ingredient])], [])).toHaveLength(0);
   });
 
-  it("lets a whole hallucinated recipe survive on 'su' substrings alone", () => {
-    const r = recipe("Hayali Yemek", ["200 g sucuk", "1 kaşık susam", "1 su"]);
-    expect(filter([r], [])).toHaveLength(1);
+  it("still correctly authorises 'su' when it genuinely IS the ingredient", () => {
+    expect(filter([recipe("Bardak Suyu", ["1 bardak su"])], [])).toHaveLength(1);
   });
 
   it("still correctly rejects an ingredient without those letters", () => {
-    // Confirms the filter is not simply accepting everything.
     expect(filter([recipe("X", ["1 adet limon"])], [])).toHaveLength(0);
+  });
+
+  it("KNOWN LIMITATION: 'su bardağı' as a measuring unit still reads as the 'su' staple", () => {
+    // "su bardağı" (~200ml) is an extremely common Turkish recipe unit, and
+    // "su" genuinely appears as its own word inside it — word-boundary
+    // matching can't tell "su" the unit from "su" the ingredient without
+    // deeper unit-phrase parsing, which is out of scope here. Documenting
+    // this as accepted behaviour rather than silently regressing on it.
+    const r = recipe("X", ["1 su bardağı portakal suyu"]);
+    expect(filter([r], [])).toHaveLength(1);
   });
 });
 
-// --- BUG (same finding, second half) --------------------------------------
-// The pantry comparison is bidirectional substring matching:
-//   normalizedIngredient.includes(productName) || productName.includes(normalizedIngredient)
-// Short pantry names therefore match far too much, and the reverse direction
-// lets a vague ingredient match a specific product.
-describe("BUG: bidirectional substring matching over-matches pantry names", () => {
-  it("lets the pantry item 'un' (flour) authorise anything containing 'un'", () => {
-    // Owning flour should not authorise a loaf of bread or a bunch of grapes.
+// --- Regression coverage for AUDIT_BACKEND.md Correctness #C7 (2nd half) --
+// The pantry comparison used to be bidirectional substring matching, which
+// let short pantry names match far too much and let a vague ingredient
+// piggyback on a more specific pantry item via the reverse direction. Now
+// only one direction is checked, and only as a whole word.
+describe("single-direction, whole-word pantry matching", () => {
+  it("no longer lets the pantry item 'un' (flour) authorise unrelated words that contain it", () => {
     const r = recipe("X", ["1 somun ekmek", "1 salkım üzüm kurusu"]);
-    expect(filter([r], ["un"])).toHaveLength(1);
+    expect(filter([r], ["un"])).toHaveLength(0);
   });
 
-  it("accepts a bare ingredient word that is merely a prefix of a pantry item", () => {
-    // Reverse direction: "domates salçası".includes("salça") is false, but
-    // "salça" is contained in the pantry name, so it passes.
+  it("no longer accepts a bare ingredient word via the reverse direction", () => {
+    // "domates salçası" no longer authorises the bare word "salça".
     const r = recipe("X", ["salça"]);
-    expect(filter([r], ["domates salçası"])).toHaveLength(1);
+    expect(filter([r], ["domates salçası"])).toHaveLength(0);
+  });
+
+  it("still authorises the exact pantry name appearing as a whole word", () => {
+    const r = recipe("X", ["2 adet domates"]);
+    expect(filter([r], ["domates"])).toHaveLength(1);
   });
 });

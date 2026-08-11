@@ -27,7 +27,13 @@ function createLineBasedParser({
   const blacklistRegex = new RegExp(`\\b(${blacklistWords.join("|")})\\b`);
 
   function isIgnored(line) {
-    return ignoredPatterns.some((pattern) => pattern.test(line));
+    // Aşağıdaki blacklist kontrolü (looksLikeRealProduct) zaten
+    // normalizeText(line) üzerinde çalışıyordu, ama bu fonksiyon HAM satırı
+    // test ediyordu — desenlerin çoğu Türkçe/ASCII ikisini de (Ş|S) gibi
+    // yakalasa da, ikisi tutarlı olsun ve gelecekte eklenecek desenler bu
+    // tuzağa tekrar düşmesin diye burası da normalize edilmiş metni test ediyor.
+    const normalized = normalizeText(line);
+    return ignoredPatterns.some((pattern) => pattern.test(normalized));
   }
 
   function looksLikeRealProduct(line) {

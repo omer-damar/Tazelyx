@@ -4,9 +4,11 @@
 // kalıp daha ekleyebilir (bkz. bimParser.js, a101Parser.js vb.).
 
 const GENERIC_IGNORED_PATTERNS = [
-  // Şirket unvanı satırları (Anonim Şirketi / Limited Şirketi eki)
-  /A\.?\s?Ş\.?\s*$/i,
-  /LTD\.?\s*Ş(Tİ|TI)\.?/i,
+  // Şirket unvanı satırları (Anonim Şirketi / Limited Şirketi eki) — Google
+  // Vision OCR'ı sıklıkla Ş harfini düz S olarak okuduğu için (bkz. dosyanın
+  // geri kalanındaki diğer desenlerin çoğu) ikisi de yakalanmalı.
+  /A\.?\s?(Ş|S)\.?\s*$/i,
+  /LTD\.?\s*(Ş|S)T(İ|I)\.?/i,
 
   // Adres bileşenleri (mahalle/cadde/sokak/bulvar, kısaltılmış hâlleriyle
   // birlikte: MAH/MH, CAD/CD, SOK/SK) ve "İLÇE / İL" satırları

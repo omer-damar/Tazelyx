@@ -31,6 +31,10 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
+  // Test ortamında (integration testleri tek bir process'ten, tek bir
+  // "IP"den onlarca register/login isteği atıyor) sınırlayıcı tamamen
+  // atlanıyor — gerçek çalışma zamanında (NODE_ENV=test DEĞİLKEN) etkisiz.
+  skip: () => process.env.NODE_ENV === "test",
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Çok fazla deneme yapıldı. Lütfen bir süre sonra tekrar dene." },

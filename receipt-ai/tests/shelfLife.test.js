@@ -94,68 +94,64 @@ describe("getEstimatedShelfLifeDays - AI fallback", () => {
   });
 });
 
-// --- BUGS (see AUDIT_BACKEND.md, Correctness #C4 and #C6) ------------------
-// The substring fallback loop `if (normalizedName.includes(key))` matches any
-// table key appearing ANYWHERE in the product name, with no word boundary and
-// in Object.keys insertion order. These tests assert the CURRENT WRONG values
-// so the damage is visible and a fix is detected.
-describe("BUG: unanchored substring matching mis-dates products", () => {
-  it("dates karabiber (black pepper) as fresh 'biber' -- 7 days instead of years", async () => {
-    await expect(getEstimatedShelfLifeDays("karabiber")).resolves.toBe(7);
-    expect(estimateShelfLifeDaysWithAi).not.toHaveBeenCalled();
+// --- Regression coverage for AUDIT_BACKEND.md Correctness #C4 -------------
+// Word-boundary matching must NOT match a table key that only appears as a
+// substring inside a different word.
+describe("word-boundary matching avoids false substring matches", () => {
+  it("does not date karabiber (black pepper) via the 'biber' key", async () => {
+    await expect(getEstimatedShelfLifeDays("karabiber")).resolves.toBe(
+      config.DEFAULT_SHELF_LIFE_DAYS
+    );
+    expect(estimateShelfLifeDaysWithAi).toHaveBeenCalledWith("karabiber");
   });
 
-  it("dates 'somun ekmek' (bread) via the 'un' (flour) key -- 180 days", async () => {
-    await expect(getEstimatedShelfLifeDays("somun ekmek")).resolves.toBe(180);
+  it("does not date 'somun ekmek' (bread) via the 'un' (flour) key", async () => {
+    estimateShelfLifeDaysWithAi.mockResolvedValue(3);
+    await expect(getEstimatedShelfLifeDays("somun ekmek")).resolves.toBe(3);
+    expect(estimateShelfLifeDaysWithAi).toHaveBeenCalledWith("somun ekmek");
   });
 
-  it("dates 'tuzlu kraker' via the 'tuz' (salt) key -- 730 days", async () => {
-    await expect(getEstimatedShelfLifeDays("tuzlu kraker")).resolves.toBe(730);
+  it("does not date 'tuzlu kraker' via the 'tuz' (salt) key", async () => {
+    estimateShelfLifeDaysWithAi.mockResolvedValue(120);
+    await expect(getEstimatedShelfLifeDays("tuzlu kraker")).resolves.toBe(120);
+    expect(estimateShelfLifeDaysWithAi).toHaveBeenCalledWith("tuzlu kraker");
   });
 
-  it("shadows the AI for names it should have escalated", async () => {
-    // All three above silently skip the AI path that exists precisely to
-    // handle packaged goods the table does not know.
-    estimateShelfLifeDaysWithAi.mockResolvedValue(365);
-    await getEstimatedShelfLifeDays("karabiber");
-    await getEstimatedShelfLifeDays("tuzlu kraker");
+  it("still matches a table key that appears as its own word among extra words", async () => {
+    // Receipt-derived names often carry quantity/brand noise around the
+    // actual product — the word-boundary match must still find it.
+    await expect(getEstimatedShelfLifeDays("1 kg domates")).resolves.toBe(7);
     expect(estimateShelfLifeDaysWithAi).not.toHaveBeenCalled();
   });
 });
 
-describe("BUG: inherited Object.prototype keys are treated as table hits", () => {
-  // `if (shelfLifeMap[normalizedName])` walks the prototype chain, so any
-  // inherited property name is a truthy "hit" and its value is returned as a
-  // day count. normalizeProductName() lowercases first, so only the all-
-  // lowercase prototype keys are reachable: "constructor" and "__proto__"
-  // ("toString"/"valueOf" become "tostring"/"valueof" and miss).
-  // Fix: `if (Object.hasOwn(shelfLifeMap, normalizedName))`.
-  it("returns a function for a product literally named 'constructor'", async () => {
-    const result = await getEstimatedShelfLifeDays("constructor");
-    expect(typeof result).toBe("function");
-    expect(estimateShelfLifeDaysWithAi).not.toHaveBeenCalled();
+describe("Object.hasOwn guards against inherited Object.prototype keys", () => {
+  // A naive `if (shelfLifeMap[normalizedName])` walks the prototype chain,
+  // so a product literally named "constructor" or "__proto__" would return
+  // a function/object as its day count and corrupt addDaysToDate. Fixed via
+  // `Object.hasOwn`, so these now fall through to the AI path like any other
+  // unknown name.
+  it("does not treat 'constructor' as a table hit", async () => {
+    await expect(getEstimatedShelfLifeDays("constructor")).resolves.toBe(
+      config.DEFAULT_SHELF_LIFE_DAYS
+    );
+    expect(estimateShelfLifeDaysWithAi).toHaveBeenCalledWith("constructor");
   });
 
-  it("returns Object.prototype for a product named '__proto__'", async () => {
-    const result = await getEstimatedShelfLifeDays("__proto__");
-    expect(typeof result).toBe("object");
-    expect(estimateShelfLifeDaysWithAi).not.toHaveBeenCalled();
+  it("does not treat '__proto__' as a table hit", async () => {
+    await expect(getEstimatedShelfLifeDays("__proto__")).resolves.toBe(
+      config.DEFAULT_SHELF_LIFE_DAYS
+    );
+    expect(estimateShelfLifeDaysWithAi).toHaveBeenCalledWith("__proto__");
   });
 
-  it("produces an Invalid Date once that value reaches addDaysToDate", async () => {
-    const days = await getEstimatedShelfLifeDays("constructor");
-    expect(Number.isFinite(days)).toBe(false);
-    expect(addDaysToDate(new Date("2026-01-01T00:00:00Z"), days).getTime()).toBeNaN();
-  });
-
-  it("corrupts the whole expire payload for such a product", async () => {
+  it("produces a valid expire payload for a product named 'constructor'", async () => {
     const info = await buildExpireInfo("constructor");
-    expect(info.estimatedExpireDate.getTime()).toBeNaN();
-    expect(info.effectiveExpireDate.getTime()).toBeNaN();
+    expect(Number.isFinite(info.estimatedExpireDate.getTime())).toBe(true);
+    expect(Number.isFinite(info.effectiveExpireDate.getTime())).toBe(true);
   });
 
-  it("is not reachable through ordinary lowercased method names", async () => {
-    // Confirms the blast radius is limited to the two lowercase keys above.
+  it("still resolves ordinary lowercased method-like names via the AI path", async () => {
     estimateShelfLifeDaysWithAi.mockResolvedValue(42);
     await expect(getEstimatedShelfLifeDays("toString")).resolves.toBe(42);
     await expect(getEstimatedShelfLifeDays("valueOf")).resolves.toBe(42);
@@ -234,12 +230,13 @@ describe("buildExpireInfo", () => {
     expect(info.expireDateSource).toBe("estimated");
   });
 
-  it("BUG: accepts an unparseable manual date and stores Invalid Date", async () => {
-    // buildExpireInfo does no isNaN check of its own. POST /api/products
-    // reaches here directly (unlike PATCH, which validates first), so a body of
-    // {"manualExpireDate": "not-a-date"} is only caught later by Mongoose.
-    const info = await buildExpireInfo("domates", "not-a-date");
-    expect(info.expireDateSource).toBe("manual");
-    expect(info.effectiveExpireDate.getTime()).toBeNaN();
+  it("rejects an unparseable manual date instead of silently storing Invalid Date", async () => {
+    // Previously buildExpireInfo did no isNaN check of its own, so
+    // POST /api/products (which reaches here directly, unlike PATCH which
+    // validated first) accepted {"manualExpireDate": "not-a-date"} and only
+    // failed later, opaquely, inside Mongoose.
+    await expect(buildExpireInfo("domates", "not-a-date")).rejects.toMatchObject({
+      status: 400,
+    });
   });
 });
