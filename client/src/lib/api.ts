@@ -35,6 +35,13 @@ async function apiRequest<T>(
 ): Promise<T> {
   const { method = "GET", body, token } = options;
 
+  // AbortSignal.timeout() bir statik factory — Hermes'in bazı sürümlerinde
+  // henüz yok, ve varsa/yoksa Jest (Node üzerinde çalışıyor, orada zaten var)
+  // bu farkı hiç yakalayamaz. AbortController + setTimeout ikisinde de var
+  // olan daha eski/temel API, bu yüzden ona geri dönüyoruz.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
@@ -44,13 +51,15 @@ async function apiRequest<T>(
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: controller.signal,
     });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new ApiError("Bağlantı zaman aşımına uğradı. İnternet/Wi-Fi bağlantını kontrol et.", 0);
     }
     throw new ApiError("Sunucuya ulaşılamadı. İnternet/Wi-Fi bağlantını kontrol et.", 0);
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   const data = await response.json().catch(() => ({}));
