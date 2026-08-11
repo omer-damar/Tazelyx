@@ -200,7 +200,12 @@ export async function syncRunningLowNotifications(products: RunningLowProduct[])
       Notifications.scheduleNotificationAsync({
         content: {
           title: "Tazelyx",
-          body: `${capitalize(product.name)} ürününüz yakında tükenebilir — almayı unutmayın!`,
+          // "Yakında" yerine "bugün ya da yarın" — RUNNING_LOW_DAYS eşiği 1
+          // gün olduğu için bu listeye düşen her ürün için bu ifade her
+          // zaman doğru; SKT bildirimlerindeki gibi kesin bir gün sayısı
+          // vermiyoruz çünkü predictedDaysRemaining kesin bir tarih değil,
+          // geçmiş tüketim hızından türetilmiş bir tahmin.
+          body: `${capitalize(product.name)} ürününüz bugün ya da yarın tükenebilir — almayı unutmayın!`,
           data: { type: "running-low" },
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
@@ -209,81 +214,4 @@ export async function syncRunningLowNotifications(products: RunningLowProduct[])
   );
 
   await cancelByIds(previousIds);
-}
-
-// --- Tanılama araçları -----------------------------------------------
-// Bildirimler saatler/günler sonra ateşlenecek şekilde kuruluyor, bu da
-// "kuruldu mu, ateşlendi mi" sorusunu her denemede saatlerce beklemeden
-// cevaplamayı imkânsız kılıyor. Aşağıdaki iki fonksiyon, Ayarlar ekranındaki
-// geçici "Bildirim Tanılama" bölümünden çağrılıp cihazda GERÇEKTEN neyin
-// kurulu olduğunu ve zamanlama mekanizmasının bu cihaz/Expo Go kurulumunda
-// çalışıp çalışmadığını dakikalar içinde göstermeyi amaçlıyor.
-
-export type ScheduledNotificationSummary = {
-  type: string;
-  body: string;
-  triggerSummary: string;
-};
-
-function summarizeTrigger(trigger: unknown): string {
-  if (trigger === null) return "hemen";
-  if (typeof trigger !== "object") return "bilinmiyor";
-  const t = trigger as Record<string, unknown>;
-
-  // iOS, DATE tetikleyicisini dahili olarak bir "calendar" tetikleyicisine
-  // (belirli yıl/ay/gün/saat/dakika bileşenleri) çeviriyor — geri okurken
-  // artık bir Date/timestamp değil, bu bileşenleri buluyoruz.
-  if (t.type === "calendar" && t.dateComponents) {
-    const d = t.dateComponents as Record<string, number | undefined>;
-    const pad = (n: number | undefined) => String(n ?? "?").padStart(2, "0");
-    return `${d.year ?? "?"}-${pad(d.month)}-${pad(d.day)} ${pad(d.hour)}:${pad(d.minute)}`;
-  }
-  if (t.type === "date" && typeof t.value === "number") {
-    return new Date(t.value).toLocaleString("tr-TR");
-  }
-  // Android bir DATE tetikleyicisini "timeInterval"e (o ana kadar kalan
-  // saniye) çeviriyor — bu değer sorgulandığı ana göre yeniden hesaplanıyor,
-  // bu yüzden ham hâliyle okunaklı değil; tahmini duvar saatine çeviriyoruz.
-  if (t.type === "timeInterval" && typeof t.seconds === "number") {
-    const estimatedFireTime = new Date(Date.now() + t.seconds * 1000);
-    const minutes = Math.round(t.seconds / 60);
-    const remaining = minutes < 60 ? `${minutes} dk sonra` : `${Math.round(minutes / 60)} sa sonra`;
-    return `${remaining}, ~${estimatedFireTime.toLocaleString("tr-TR")}${t.repeats ? " (tekrarlı)" : ""}`;
-  }
-  return JSON.stringify(t);
-}
-
-export async function getNotificationDebugSummary(): Promise<{
-  permissionStatus: string;
-  scheduled: ScheduledNotificationSummary[];
-}> {
-  const { status } = await Notifications.getPermissionsAsync();
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-
-  return {
-    permissionStatus: status,
-    scheduled: scheduled.map((notification) => ({
-      type: (notification.content.data?.type as string) ?? "?",
-      body: notification.content.body ?? "",
-      triggerSummary: summarizeTrigger(notification.trigger),
-    })),
-  };
-}
-
-// Üretimdeki running-low/expiry bildirimleriyle AYNI tetikleyici türünü
-// (SchedulableTriggerInputTypes.DATE) kullanır — amaç farklı bir mekanizmayı
-// değil, gerçekte kullanılan mekanizmanın bu cihazda çalışıp çalışmadığını
-// test etmek.
-export async function scheduleTestNotification(secondsFromNow: number): Promise<Date> {
-  await ensurePermission();
-  const triggerDate = new Date(Date.now() + secondsFromNow * 1000);
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Tazelyx — Test",
-      body: `Bu bildirim ${secondsFromNow} saniye önce planlandı. Bunu görüyorsan zamanlama mekanizması bu cihazda çalışıyor demektir.`,
-      data: { type: "test" },
-    },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
-  });
-  return triggerDate;
 }
