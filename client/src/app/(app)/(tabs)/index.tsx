@@ -20,8 +20,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/AppHeader";
 import { EmptyState } from "@/components/EmptyState";
-import { ExpireBadge } from "@/components/ExpireBadge";
+import { daysUntil, EXPIRING_SOON_DAYS, ExpireBadge } from "@/components/ExpireBadge";
 import { LyxMascot } from "@/components/LyxMascot";
+import { RescueCelebration } from "@/components/RescueCelebration";
 import { DefaultTabHeaderRight } from "@/components/TabHeaderActions";
 import { useAuth } from "@/context/AuthContext";
 import { useThemePreference } from "@/context/ThemeContext";
@@ -138,6 +139,9 @@ export default function PantryScreen() {
     reason: "consumed" | "expired";
   } | null>(null);
   const pendingDeleteTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [rescueCelebration, setRescueCelebration] = useState<{ productName: string } | null>(
+    null
+  );
   // loadProducts, bekleyen bir silme varken sunucudan taze veri çekip
   // üzerine yazabiliyor — bu ref, o anki bekleyen silmenin hangi ürünü
   // kapsadığını (state'e bağımlı kalmadan, closure'ı bayatlatmadan) taze
@@ -246,6 +250,16 @@ export default function PantryScreen() {
     const index = products.findIndex((p) => p._id === product._id);
     setProducts((current) => current.filter((p) => p._id !== product._id));
     setPendingDelete({ product, index, reason });
+
+    // "Kurtarma": ürün çöpe gitmeden, son kullanma tarihine EXPIRING_SOON_DAYS
+    // (bkz. ExpireBadge.tsx) veya daha az gün kalmışken tüketildi olarak
+    // işaretlenmiş — bu, İsraf Skoru'nun asıl ödüllendirmek istediği an.
+    if (reason === "consumed") {
+      const days = daysUntil(product.effectiveExpireDate);
+      if (days !== null && days >= 0 && days <= EXPIRING_SOON_DAYS) {
+        setRescueCelebration({ productName: product.name });
+      }
+    }
 
     pendingDeleteTimeout.current = setTimeout(() => {
       commitPendingDelete(product, reason);
@@ -454,6 +468,13 @@ export default function PantryScreen() {
             )}
           </>
         )}
+
+        <RescueCelebration
+          visible={!!rescueCelebration}
+          productName={rescueCelebration?.productName ?? ""}
+          moodImage={KILER_MOOD_IMAGES.harika}
+          onHide={() => setRescueCelebration(null)}
+        />
 
         {pendingDelete ? (
           <View className="absolute left-4 right-4 bottom-24 bg-slate-900 dark:bg-[#1E293B] dark:border dark:border-white/10 rounded-xl px-4 py-3 flex-row items-center justify-between">
