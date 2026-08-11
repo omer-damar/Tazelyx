@@ -9,8 +9,28 @@ Bu proje bir bitirme tezi kapsamında geliştirilmiştir.
 
 ---
 
+## Ekran Görüntüleri
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/giris.jpeg" width="200"><br><sub><b>Giriş</b></sub></td>
+    <td align="center"><img src="docs/screenshots/kiler.jpeg" width="200"><br><sub><b>Kiler</b></sub></td>
+    <td align="center"><img src="docs/screenshots/tara.jpeg" width="200"><br><sub><b>Fiş Tara</b></sub></td>
+    <td align="center"><img src="docs/screenshots/tarifler.jpeg" width="200"><br><sub><b>Tarifler</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/tarifler2.jpeg" width="200"><br><sub><b>Tarifler (devamı)</b></sub></td>
+    <td align="center"><img src="docs/screenshots/panel.jpeg" width="200"><br><sub><b>Panel</b></sub></td>
+    <td align="center"><img src="docs/screenshots/israfskoru1.jpeg" width="200"><br><sub><b>İsraf Skoru</b></sub></td>
+    <td align="center"><img src="docs/screenshots/israfskoru2.jpeg" width="200"><br><sub><b>İsraf Skoru (devamı)</b></sub></td>
+  </tr>
+</table>
+
+---
+
 ## İçindekiler
 
+- [Ekran Görüntüleri](#ekran-görüntüleri)
 - [Özellikler](#özellikler)
 - [Mimari ve Teknik Kararlar](#mimari-ve-teknik-kararlar)
 - [Teknoloji Yığını](#teknoloji-yığını)
