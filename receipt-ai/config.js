@@ -19,9 +19,14 @@ const AI_PROVIDER_PRESETS = {
   gemini: {
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     apiKey: process.env.GEMINI_API_KEY,
+    // NOT: "gemini-2.5-flash"/"gemini-2.5-flash-lite" bilerek burada DEĞİL —
+    // /v1beta/openai/models listesinde görünmelerine rağmen bu OpenAI-uyumlu
+    // uç noktada gerçekten 404 dönüyorlar (canlı test edilip doğrulandı,
+    // 2026-08-17). Buradaki 4 model, gerçekten çalıştığı doğrudan API
+    // çağrısıyla test edilmiş modeller.
     modelChain: process.env.AI_MODEL
       ? [process.env.AI_MODEL]
-      : ["gemini-flash-latest", "gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
+      : ["gemini-flash-latest", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-lite-latest"],
   },
   groq: {
     baseURL: "https://api.groq.com/openai/v1",
