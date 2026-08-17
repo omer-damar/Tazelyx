@@ -161,7 +161,20 @@ export default function RecipesScreen() {
       </View>
 
       <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 100 }}>
-        {errorMessage ? (
+        {isLoading ? (
+          // isLoading kontrolü olmadan, handleSuggest içinde hasSearched
+          // await'ten ÖNCE true olduğu için bu blok yerine aşağıdaki
+          // "recipes.length === 0" dalı bir an için (gerçek sonuç gelene
+          // kadar) yanlışlıkla "uygun tarif bulunamadı" gösteriyordu —
+          // buton hâlâ yükleniyorken ekranda "bulunamadı" yazısı görünen
+          // gerçek bir kullanıcı raporuydu.
+          <View className="items-center mt-16 gap-3 px-8">
+            <ActivityIndicator color="#047857" />
+            <Text className="text-ink-muted dark:text-slate-400 text-center">
+              Tarifler hazırlanıyor, biraz sürebilir...
+            </Text>
+          </View>
+        ) : errorMessage ? (
           <Text className="text-ink-muted dark:text-slate-400 text-center mt-8 px-4">
             {errorMessage}
           </Text>
