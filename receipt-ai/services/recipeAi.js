@@ -1,6 +1,7 @@
 const OpenAI = require("openai");
 const config = require("../config");
 const { normalizeProductName } = require("./shelfLife");
+const { createChatCompletionWithFallback } = require("./aiModelFallback");
 
 // AI sağlayıcısı config.js üzerinden (AI_PROVIDER ile) seçiliyor. Gemini/Groq
 // ikisi de OpenAI-uyumlu bir endpoint sunduğu için, sağlayıcı değişse bile
@@ -61,9 +62,7 @@ function isValidRecipesPayload(payload) {
 }
 
 async function generateRecipeSuggestions(prompt) {
-  const response = await client.chat.completions.create({
-    // Model adı config.js üzerinden (ve gerekirse .env > AI_MODEL ile) yönetilir.
-    model: config.AI_MODEL,
+  const response = await createChatCompletionWithFallback(client, config.AI_MODEL_CHAIN, {
     messages: [
       {
         role: "system",

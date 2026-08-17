@@ -1,5 +1,6 @@
 const OpenAI = require("openai");
 const config = require("../config");
+const { createChatCompletionWithFallback } = require("./aiModelFallback");
 
 // AMAÇ: services/shelfLife.js'teki sabit shelfLifeMap sadece ~20 temel ürünü
 // (süt, domates, tavuk vb.) biliyor — bilmediği HER ŞEY (paketli atıştırmalık,
@@ -27,8 +28,7 @@ olsun, başka hiçbir açıklama ekleme: {"days": <pozitif tam sayı>}`;
 
 async function estimateShelfLifeDaysWithAi(productName) {
   try {
-    const response = await client.chat.completions.create({
-      model: config.AI_MODEL,
+    const response = await createChatCompletionWithFallback(client, config.AI_MODEL_CHAIN, {
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: productName },
