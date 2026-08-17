@@ -29,14 +29,17 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
 // edip anlaşılır bir hata mesajı veriyoruz.
 const REQUEST_TIMEOUT_MS = 15000;
 
-// /recipes/suggest bir AI çağrısı (backend'de kendi 30 sn'lik zaman aşımı
-// var, bkz. services/recipeAi.js) + ardından her tarif için ayrı bir gerçek-
-// tarif arama isteği (services/recipeSearch.js) yapıyor — sıradan bir CRUD
+// /recipes/suggest bir AI çağrısı (backend'de artık bir model kotası dolarsa
+// sırayla bir sonrakine geçen bir zincir var, bkz. services/aiModelFallback.js
+// — her deneme birkaç saniye sürebiliyor, zincirdeki birden fazla model
+// denenirse üst üste eklenir) + ardından her tarif için ayrı bir gerçek-tarif
+// arama isteği (services/recipeSearch.js) yapıyor — sıradan bir CRUD
 // isteğinden çok daha uzun sürebiliyor. Genel 15 sn'lik zaman aşımı bu uçta
 // gerçek kullanımda sürekli tetikleniyordu (bkz. kullanıcı raporu, "Bağlantı
 // zaman aşımına uğradı" — bağlantı değil, istek gerçekten 15 sn'den uzun
-// sürüyordu).
-const AI_REQUEST_TIMEOUT_MS = 45000;
+// sürüyordu); model zinciri eklendikten sonra bile tek başına ~22 sn süren
+// denemeler ölçüldü, bu yüzden pay 45 sn'den 60 sn'ye çıkarıldı.
+const AI_REQUEST_TIMEOUT_MS = 60000;
 
 async function apiRequest<T>(
   path: string,
