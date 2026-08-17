@@ -13,7 +13,11 @@ const { createChatCompletionWithFallback } = require("./aiModelFallback");
 const client = new OpenAI({
   apiKey: config.AI_API_KEY,
   baseURL: config.AI_BASE_URL,
-  timeout: 15 * 1000,
+  // bkz. recipeAi.js'teki aynı gerekçe (zayıf ağlarda başarılı bir çağrı
+  // bile 25-30 sn sürebiliyor) — burada daha kısa tutuldu çünkü bu özellik
+  // zaten başarısız olursa sessizce DEFAULT_SHELF_LIFE_DAYS'e düşüyor,
+  // ürün ekleme akışını uzun süre bloklamaması önemli.
+  timeout: 20 * 1000,
   // aiModelFallback.js zaten kendi zincirinde bir sonraki modele geçiyor —
   // SDK'nın kendi varsayılan tekrar mekanizması (2 ek deneme) üst üste
   // binmesin diye kapalı (bkz. recipeAi.js'teki aynı gerekçe).

@@ -93,7 +93,7 @@ module.exports = {
   // "exp://<lan-ip>:8081" — Metro'nun QR ile bağlanmakta kullanılan aynı
   // adresi (bkz. client tarafındaki API_BASE_URL) — Wi-Fi ağı değişirse
   // burası da güncellenmeli.
-  EXPO_APP_URL: process.env.EXPO_APP_URL || "exp://192.168.1.107:8081",
+  EXPO_APP_URL: process.env.EXPO_APP_URL || "exp://172.20.10.2:8081",
   EMAIL_TOKEN_EXPIRES_MS: 24 * 60 * 60 * 1000, // 24 saat
   PASSWORD_RESET_TOKEN_EXPIRES_MS: 60 * 60 * 1000, // 1 saat
 
