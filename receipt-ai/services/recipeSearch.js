@@ -21,6 +21,11 @@ async function findRelatedRealRecipe(query) {
         include_domains: ["nefisyemektarifleri.com"],
         max_results: 1,
       }),
+      // Bu, tarif önerisinin "bonus" bir zenginleştirmesi (gerçek bir kaynak
+      // linki) — hiç zaman aşımı yoksa, Tavily nadiren yavaşladığında AI
+      // kısmı çoktan bitmiş olsa bile tüm /recipes/suggest isteği bunun
+      // yüzünden süresiz bekleyebiliyordu.
+      signal: AbortSignal.timeout(10 * 1000),
     });
 
     if (!response.ok) return null;

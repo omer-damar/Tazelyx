@@ -36,10 +36,13 @@ const REQUEST_TIMEOUT_MS = 15000;
 // arama isteği (services/recipeSearch.js) yapıyor — sıradan bir CRUD
 // isteğinden çok daha uzun sürebiliyor. Genel 15 sn'lik zaman aşımı bu uçta
 // gerçek kullanımda sürekli tetikleniyordu (bkz. kullanıcı raporu, "Bağlantı
-// zaman aşımına uğradı" — bağlantı değil, istek gerçekten 15 sn'den uzun
-// sürüyordu); model zinciri eklendikten sonra bile tek başına ~22 sn süren
-// denemeler ölçüldü, bu yüzden pay 45 sn'den 60 sn'ye çıkarıldı.
-const AI_REQUEST_TIMEOUT_MS = 60000;
+// zaman aşımına uğradı"). Zayıf/yavaş ağlarda (ör. telefon hotspot'u, bir
+// tez sunumu provası sırasında ölçüldü) BAŞARILI tek bir model çağrısının
+// bile 25-30 sn sürdüğü görüldü — backend tarafındaki model-başı zaman
+// aşımı da buna göre 45 sn'ye çıkarıldı (bkz. services/recipeAi.js). İki
+// model denenirse (biri başarısız, biri başarılı) + arama adımı toplamda
+// 60 sn'yi de aşabildiği için pay 90 sn'ye çıkarıldı.
+const AI_REQUEST_TIMEOUT_MS = 90000;
 
 async function apiRequest<T>(
   path: string,

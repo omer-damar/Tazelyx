@@ -10,9 +10,12 @@ const { createChatCompletionWithFallback } = require("./aiModelFallback");
 const client = new OpenAI({
   apiKey: config.AI_API_KEY,
   baseURL: config.AI_BASE_URL,
-  // 30 saniyelik timeout tanımlı — aksi halde AI servisi beklenenden yavaş
-  // yanıt verirse istek süresiz asılı kalabilir.
-  timeout: 30 * 1000,
+  // Zayıf/yavaş ağlarda (ör. telefon hotspot'u) BAŞARILI bir çağrının bile
+  // 25-30 sn sürdüğü ölçüldü — 30 sn'lik bir zaman aşımı bu durumda başarılı
+  // olacak bir çağrıyı bile tam sınırda kesiyordu. 45 sn'ye çıkarıldı; aksi
+  // halde AI servisi beklenenden yavaş yanıt verirse istek süresiz asılı
+  // kalabilir.
+  timeout: 45 * 1000,
   // openai SDK'sı varsayılan olarak başarısız istekleri kendi içinde 2 kez
   // daha (artan bekleme süreleriyle) tekrar dener. aiModelFallback.js zaten
   // KENDİ zincirinde bir sonraki modele geçiyor — ikisi üst üste binince
