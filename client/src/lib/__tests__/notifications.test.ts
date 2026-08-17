@@ -84,44 +84,62 @@ function expiringProduct(overrides: Partial<Product> = {}): Product {
 // notifications too, since they carry the same type tag. Net effect: every
 // resync silently emptied the queue back to zero. Caught via a live
 // on-device diagnostic tool, not by a test, which is why this suite exists now.
+// RUNNING_LOW_LOOKAHEAD_DAYS ile aynı sayı — notifications.ts değişirse
+// burada da güncellenmesi gerekir, testlerin sihirli sayı tekrarını
+// azaltmak için tek yerde tutuluyor.
+const DAYS_PER_PRODUCT = 3;
+
 describe("syncRunningLowNotifications", () => {
-  it("has exactly one scheduled notification after the first sync", async () => {
+  it("schedules multiple upcoming days per product, not just the next occurrence", async () => {
+    // REGRESSION: gerçek bir kullanıcı raporu — tek bir "bir sonraki an"
+    // bildirimi, uygulama birkaç gün açılmazsa sessizce hiç ateşlenmeden
+    // sona eriyordu (SKT bildirimleri T-3/T-2/T-1/T-0 ile günler öncesinden
+    // kurulduğu için bu sorunu yaşamıyordu, tükenmek üzere hiç yapmıyordu).
     await syncRunningLowNotifications([runningLowProduct()]);
-    expect(await scheduledCount()).toBe(1);
+    expect(await scheduledCount()).toBe(DAYS_PER_PRODUCT);
+
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const triggerDates = scheduled
+      .map((n) => (n.trigger as { date: Date }).date.getTime())
+      .sort((a, b) => a - b);
+    // Ardışık günler arası fark tam 24 saat olmalı (aynı saatte tekrar).
+    for (let i = 1; i < triggerDates.length; i++) {
+      expect(triggerDates[i] - triggerDates[i - 1]).toBe(24 * 60 * 60 * 1000);
+    }
   });
 
   it("REGRESSION: a second sync with the same product does not wipe the queue to zero", async () => {
     await syncRunningLowNotifications([runningLowProduct()]);
-    expect(await scheduledCount()).toBe(1);
+    expect(await scheduledCount()).toBe(DAYS_PER_PRODUCT);
 
     await syncRunningLowNotifications([runningLowProduct()]);
-    expect(await scheduledCount()).toBe(1);
+    expect(await scheduledCount()).toBe(DAYS_PER_PRODUCT);
   });
 
-  it("schedules one notification per product, tagged running-low", async () => {
+  it("schedules one notification per upcoming day per product, tagged running-low", async () => {
     await syncRunningLowNotifications([
       runningLowProduct({ productId: "1", name: "yoğurt" }),
       runningLowProduct({ productId: "2", name: "elma" }),
     ]);
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-    expect(scheduled).toHaveLength(2);
+    expect(scheduled).toHaveLength(2 * DAYS_PER_PRODUCT);
     expect(scheduled.every((n) => n.content.data?.type === "running-low")).toBe(true);
   });
 
-  it("replacing a two-product list with a one-product list ends at exactly one", async () => {
+  it("replacing a two-product list with a one-product list ends at the one-product count", async () => {
     await syncRunningLowNotifications([
       runningLowProduct({ productId: "1", name: "yoğurt" }),
       runningLowProduct({ productId: "2", name: "elma" }),
     ]);
-    expect(await scheduledCount()).toBe(2);
+    expect(await scheduledCount()).toBe(2 * DAYS_PER_PRODUCT);
 
     await syncRunningLowNotifications([runningLowProduct({ productId: "1", name: "yoğurt" })]);
-    expect(await scheduledCount()).toBe(1);
+    expect(await scheduledCount()).toBe(DAYS_PER_PRODUCT);
   });
 
   it("cancels everything when the product list becomes empty", async () => {
     await syncRunningLowNotifications([runningLowProduct()]);
-    expect(await scheduledCount()).toBe(1);
+    expect(await scheduledCount()).toBe(DAYS_PER_PRODUCT);
 
     await syncRunningLowNotifications([]);
     expect(await scheduledCount()).toBe(0);
@@ -137,6 +155,15 @@ describe("syncRunningLowNotifications", () => {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     const expiryStill = scheduled.filter((n) => n.content.data?.type === "expiry");
     expect(expiryStill).toHaveLength(expiryCountBefore);
+  });
+
+  it("respects MAX_RUNNING_LOW_NOTIFICATIONS when many products are running low", async () => {
+    const manyProducts = Array.from({ length: 10 }, (_, i) =>
+      runningLowProduct({ productId: `p${i}`, name: `ürün${i}` })
+    );
+    await syncRunningLowNotifications(manyProducts);
+    // 10 ürün * 3 gün = 30 olurdu, ama tavan 12'de kesiyor.
+    expect(await scheduledCount()).toBe(12);
   });
 });
 

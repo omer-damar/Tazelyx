@@ -164,6 +164,25 @@ export async function syncExpiryNotifications(products: Product[]) {
 // zaman noktası her zaman geçmişte kalır ve bildirim hiç kurulmaz. Bunun
 // yerine en yakın makul zaman dilimine (bugün 18:00 geçmemişse bugün 18:00,
 // geçtiyse yarın 09:00) bildirim kuruluyor.
+// SKT bildirimleri (yukarıda) ürün başına 4 ayrı GELECEK TAKVİM TARİHİNE
+// (T-3/T-2/T-1/T-0) kurulduğu için kullanıcı günlerce uygulamayı hiç
+// açmasa bile en son senkron sırasında kurulanlar kendi tarihlerinde
+// ateşlenmeye devam eder. Tükenmek üzere bildirimleri ise ESKİDEN sadece
+// TEK bir "bir sonraki an" için kuruluyordu (bugün 18:00 ya da yarın
+// 09:00) — bu, sadece HER GÜN uygulamayı açan biri için işe yarıyordu;
+// birkaç gün açılmazsa o tek bildirim ya ateşlenip tükeniyor ya da hiç
+// fırsat bulamadan zaman aşımına uğruyor ve bir daha KENDİLİĞİNDEN
+// yenilenmiyordu (gerçek kullanıcı raporu: SKT bildirimleri günlerce
+// gelmeye devam ederken tükenmek üzere hiç gelmedi). Aynı tamponu
+// tükenmek üzere'ye de eklemek için, her ürün için tek bir an yerine
+// birbirini izleyen RUNNING_LOW_LOOKAHEAD_DAYS gün boyunca (aynı saatte,
+// 24 saat arayla) bildirim kuruluyor.
+const RUNNING_LOW_LOOKAHEAD_DAYS = 3;
+// iOS toplamda en fazla 64 bekleyen bildirime izin veriyor; SKT tarafı
+// zaten kendi payını 48 ile sınırlıyor (bkz. MAX_EXPIRY_NOTIFICATIONS),
+// burada da makul bir pay ayrılıyor.
+const MAX_RUNNING_LOW_NOTIFICATIONS = 12;
+
 export async function syncRunningLowNotifications(products: RunningLowProduct[]) {
   await ensurePermission();
 
@@ -181,7 +200,7 @@ export async function syncRunningLowNotifications(products: RunningLowProduct[])
   const todayEvening = new Date(now);
   todayEvening.setHours(18, 0, 0, 0);
 
-  const triggerDate =
+  const firstTriggerDate =
     todayEvening.getTime() > now.getTime()
       ? todayEvening
       : (() => {
@@ -194,24 +213,42 @@ export async function syncRunningLowNotifications(products: RunningLowProduct[])
   // Önce YENİ bildirimleri kuruyoruz, eskilerini (yukarıda kurmadan ÖNCE
   // yakalanan kimlikleri) ancak bu başarıyla bittikten SONRA iptal
   // ediyoruz — hem yarıda hata olursa eski bildirim kaybolmasın hem de az
-  // önce kurduğumuz yenileri kendi kendimize silmeyelim diye.
-  await Promise.all(
-    products.map((product) =>
-      Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Tazelyx",
-          // "Yakında" yerine "bugün ya da yarın" — RUNNING_LOW_DAYS eşiği 1
-          // gün olduğu için bu listeye düşen her ürün için bu ifade her
-          // zaman doğru; SKT bildirimlerindeki gibi kesin bir gün sayısı
-          // vermiyoruz çünkü predictedDaysRemaining kesin bir tarih değil,
-          // geçmiş tüketim hızından türetilmiş bir tahmin.
-          body: `${capitalize(product.name)} ürününüz bugün ya da yarın tükenebilir — almayı unutmayın!`,
-          data: { type: "running-low" },
-        },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
-      })
-    )
-  );
+  // önce kurduğumuz yenileri kendi kendimize silmeyelim diye. Kullanıcı bu
+  // pencere içinde tekrar uygulamayı açarsa (ör. ürünü satın alıp kilere
+  // eklerse) zaten bir sonraki senkron bunları iptal edip güncel listeyle
+  // yeniden kurar — ileri tarihli bildirimler "bayatlarsa" bu şekilde
+  // kendiliğinden düzelir.
+  const schedulePromises: Promise<unknown>[] = [];
+  let scheduledCount = 0;
 
+  for (const product of products) {
+    if (scheduledCount >= MAX_RUNNING_LOW_NOTIFICATIONS) break;
+
+    for (let dayOffset = 0; dayOffset < RUNNING_LOW_LOOKAHEAD_DAYS; dayOffset++) {
+      if (scheduledCount >= MAX_RUNNING_LOW_NOTIFICATIONS) break;
+
+      const triggerDate = new Date(firstTriggerDate);
+      triggerDate.setDate(triggerDate.getDate() + dayOffset);
+
+      schedulePromises.push(
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: "Tazelyx",
+            // "Yakında" yerine "bugün ya da yarın" — RUNNING_LOW_DAYS eşiği 1
+            // gün olduğu için bu listeye düşen her ürün için bu ifade her
+            // zaman doğru; SKT bildirimlerindeki gibi kesin bir gün sayısı
+            // vermiyoruz çünkü predictedDaysRemaining kesin bir tarih değil,
+            // geçmiş tüketim hızından türetilmiş bir tahmin.
+            body: `${capitalize(product.name)} ürününüz bugün ya da yarın tükenebilir — almayı unutmayın!`,
+            data: { type: "running-low" },
+          },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
+        })
+      );
+      scheduledCount += 1;
+    }
+  }
+
+  await Promise.all(schedulePromises);
   await cancelByIds(previousIds);
 }
