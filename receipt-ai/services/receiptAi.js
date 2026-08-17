@@ -14,6 +14,10 @@ const client = new OpenAI({
   apiKey: config.AI_API_KEY,
   baseURL: config.AI_BASE_URL,
   timeout: 30 * 1000,
+  // aiModelFallback.js zaten kendi zincirinde bir sonraki modele geçiyor —
+  // SDK'nın kendi varsayılan tekrar mekanizması (2 ek deneme) üst üste
+  // binmesin diye kapalı (bkz. recipeAi.js'teki aynı gerekçe).
+  maxRetries: 0,
 });
 
 const SYSTEM_PROMPT = `Sen bir Türkiye market fişinin OCR (metne dönüştürülmüş) çıktısını analiz edip

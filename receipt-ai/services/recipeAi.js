@@ -13,6 +13,14 @@ const client = new OpenAI({
   // 30 saniyelik timeout tanımlı — aksi halde AI servisi beklenenden yavaş
   // yanıt verirse istek süresiz asılı kalabilir.
   timeout: 30 * 1000,
+  // openai SDK'sı varsayılan olarak başarısız istekleri kendi içinde 2 kez
+  // daha (artan bekleme süreleriyle) tekrar dener. aiModelFallback.js zaten
+  // KENDİ zincirinde bir sonraki modele geçiyor — ikisi üst üste binince
+  // (4 model x kendi içinde 3 deneme) toplam süre istemcinin 45 sn'lik
+  // zaman aşımını kolayca aşabiliyordu (gerçek bir kullanıcı raporuydu:
+  // bazen çalışıyor bazen "zaman aşımı" veriyordu — kaç modelin kaçıncı iç
+  // denemede başarılı/başarısız olduğuna bağlı olarak süre değişiyordu).
+  maxRetries: 0,
 });
 
 // Bu sistem promptu, "Akıllı Kiler" projesinin asıl amacına (kilerdeki
