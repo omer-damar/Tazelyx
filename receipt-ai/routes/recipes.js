@@ -159,6 +159,16 @@ router.get("/suggest", async (req, res) => {
       });
     }
 
+    // AI sağlayıcısının kendi tarafında geçici bir aşırı yüklenme/kesinti
+    // (5xx) olduğunda (ör. "InternalServerError: 503 status code") kullanıcı
+    // bunun kendi bağlantısıyla ilgisi olmadığını anlamalı — genel "hata
+    // oluştu" yerine ayrıca ele alınır.
+    if (error instanceof OpenAI.InternalServerError) {
+      return res.status(502).json({
+        message: "AI servisi şu anda geçici olarak erişilemez durumda, lütfen birazdan tekrar deneyin.",
+      });
+    }
+
     res.status(500).json({
       message: "AI tarif önerisi oluşturulurken hata oluştu.",
       error: safeErrorDetail(error),
