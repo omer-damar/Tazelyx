@@ -1,5 +1,6 @@
 const OpenAI = require("openai");
 const config = require("../config");
+const { createChatCompletionWithFallback } = require("./aiModelFallback");
 
 // AMAÇ: Regex tabanlı market parser'ları (services/parsers/) her yeni market
 // için elle bir dosya (kendi gürültü desenleriyle) yazmayı gerektiriyordu —
@@ -74,8 +75,7 @@ function isValidReceiptPayload(payload) {
 }
 
 async function parseReceiptWithAi(rawText) {
-  const response = await client.chat.completions.create({
-    model: config.AI_MODEL,
+  const response = await createChatCompletionWithFallback(client, config.AI_MODEL_CHAIN, {
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: rawText },

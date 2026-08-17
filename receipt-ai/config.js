@@ -9,25 +9,39 @@
 // genişletme noktası burası.
 const AI_PROVIDER = process.env.AI_PROVIDER || "gemini";
 
+// Her sağlayıcının, birincil model dolu/aşırı yüklüyse sırayla denenecek
+// bir "yedek model zinciri" var. gemini-flash-latest gibi bir "latest"
+// takma adı en yeni (ve genelde en düşük ücretsiz günlük kotalı) modele
+// işaret ediyor — o kota dolunca bir öncekine, o da dolunca ondan bir
+// öncekine düşülüyor. Groq/OpenAI'da şimdilik tek model yeterli (Groq'un
+// ücretsiz kotası zaten yüksek, OpenAI'a bu projede geçilmeyecek).
 const AI_PROVIDER_PRESETS = {
   gemini: {
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     apiKey: process.env.GEMINI_API_KEY,
-    model: process.env.AI_MODEL || "gemini-flash-latest",
+    modelChain: process.env.AI_MODEL
+      ? [process.env.AI_MODEL]
+      : ["gemini-flash-latest", "gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
   },
   groq: {
     baseURL: "https://api.groq.com/openai/v1",
     apiKey: process.env.GROQ_API_KEY,
-    model: process.env.AI_MODEL || "llama-3.3-70b-versatile",
+    modelChain: [process.env.AI_MODEL || "llama-3.3-70b-versatile"],
   },
   openai: {
     baseURL: undefined,
     apiKey: process.env.OPENAI_API_KEY,
-    model: process.env.AI_MODEL || "gpt-4.1-mini",
+    modelChain: [process.env.AI_MODEL || "gpt-4.1-mini"],
   },
 };
 
 const activeAiPreset = AI_PROVIDER_PRESETS[AI_PROVIDER] || AI_PROVIDER_PRESETS.gemini;
+// .env > AI_MODEL_CHAIN, virgülle ayrılmış bir liste olarak yukarıdaki
+// varsayılan zincirin tamamını override edebilir (ör. farklı bir sıra ya
+// da farklı modeller denemek için kod değişikliği gerekmesin diye).
+const modelChain = process.env.AI_MODEL_CHAIN
+  ? process.env.AI_MODEL_CHAIN.split(",").map((m) => m.trim()).filter(Boolean)
+  : activeAiPreset.modelChain;
 
 module.exports = {
   // Bir ürün, son kullanma tarihine kaç gün kala "yakında bozulacak" sayılır
@@ -62,7 +76,10 @@ module.exports = {
   AI_PROVIDER,
   AI_BASE_URL: activeAiPreset.baseURL,
   AI_API_KEY: activeAiPreset.apiKey,
-  AI_MODEL: activeAiPreset.model,
+  // Geriye dönük uyumluluk için: zincirdeki İLK model. Yeni kod
+  // AI_MODEL_CHAIN'i kullanmalı.
+  AI_MODEL: modelChain[0],
+  AI_MODEL_CHAIN: modelChain,
 
   // E-posta onayı henüz frontend'de karşılık bir ekranı olmadığı için
   // doğrudan backend'in kendi uç noktasına işaret ediyor (GET, tarayıcıda
