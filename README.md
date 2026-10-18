@@ -156,7 +156,7 @@ Projede karşılaşılan ve bilinçli olarak çözülen bazı mühendislik probl
 ### İstemci (`client/`)
 | Katman | Teknoloji |
 |---|---|
-| Çerçeve | React Native 0.81, Expo SDK 54 |
+| Çerçeve | React Native 0.86, Expo SDK 57 |
 | Dil | TypeScript |
 | Yönlendirme | Expo Router (dosya tabanlı) |
 | Stil | NativeWind (Tailwind CSS for React Native) |
@@ -187,7 +187,8 @@ akilli-kiler/
 ├── client/                      # React Native (Expo) mobil uygulama
 │   └── src/
 │       ├── app/                 # Expo Router ekranları (dosya tabanlı yönlendirme)
-│       │   ├── (auth)/          # Giriş, kayıt, şifre sıfırlama
+│       │   ├── (auth)/          # Giriş, kayıt, şifremi unuttum, e-posta onayı
+│       │   ├── reset-password   # Şifre sıfırlama (mail bağlantısı, oturumdan bağımsız açılır)
 │       │   └── (app)/
 │       │       └── (tabs)/      # Kiler, Fiş Tara, Tarifler, Panel
 │       ├── components/          # Paylaşılan UI bileşenleri
@@ -207,11 +208,12 @@ akilli-kiler/
 ## Kurulum
 
 ### Gereksinimler
-- Node.js 18+
+- Node.js 20.19+ (React Native 0.86 ve Mongoose 9 için gerekli)
 - MongoDB (yerel veya Atlas)
 - Bir Google Cloud Vision servis hesabı anahtarı (fiş OCR için)
 - Bir Gemini API anahtarı (AI destekli özellikler için)
-- Fiziksel bir telefonda test için: [Expo Go](https://expo.dev/go)
+- Fiziksel bir telefonda test için: [Expo Go](https://expo.dev/go) — mağazadaki
+  Expo Go yalnızca güncel SDK'yı açar; bu proje **SDK 57** ile uyumludur
 
 ### Sunucu (`receipt-ai/`)
 
@@ -231,9 +233,33 @@ npx expo start --lan
 ```
 
 Telefonunuzun kamerasıyla çıkan QR kodu okutup Expo Go'da açabilir, ya da bir
-iOS/Android emülatöründe çalıştırabilirsiniz. İstemcinin sunucuya ulaşabilmesi için
-`client/src/lib/config.ts` içindeki `API_BASE_URL`'in bilgisayarınızın yerel ağ
-IP adresiyle eşleşmesi gerekir.
+iOS/Android emülatöründe çalıştırabilirsiniz. (`client/.npmrc` içindeki
+`legacy-peer-deps` ayarı, bir paketin isteğe bağlı peer bağımlılığı yüzünden
+`npm install`'ın çakışma hatası vermesini önler.)
+
+#### Yerel ağ IP adresi
+
+Telefon, bilgisayarınızdaki sunucuya ve Metro'ya yerel ağ IP'siyle ulaşır; bu yüzden
+**ağ (Wi-Fi/hotspot) her değiştiğinde** şu üç yer güncellenmelidir:
+
+| Dosya | Değişken |
+|---|---|
+| `client/src/lib/config.ts` | `API_BASE_URL` (`http://<IP>:4000/api`) |
+| `receipt-ai/config.js` | `EXPO_APP_URL` yedek değeri (`exp://<IP>:8081`) |
+| `receipt-ai/.env` | `APP_BASE_URL` (`http://<IP>:4000`) |
+
+`.env` değiştiğinde sunucuyu elle yeniden başlatın (nodemon `.env`'i izlemez),
+Metro'yu da `npx expo start --lan --clear` ile açın. E-postadaki doğrulama ve şifre
+sıfırlama bağlantıları, mail gönderildiği andaki IP'yi içerir; ağ değiştikten sonra
+eski maillerin bağlantıları çalışmaz.
+
+### Testler
+
+```bash
+cd receipt-ai && npm test    # sunucu: Jest + bellek içi MongoDB
+cd client && npm test        # istemci: Jest
+cd client && npx tsc --noEmit
+```
 
 ---
 
