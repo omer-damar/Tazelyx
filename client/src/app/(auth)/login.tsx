@@ -128,14 +128,14 @@ export default function LoginScreen() {
             )}
           </Pressable>
 
-          <Link href="/(auth)/forgot-password" className="text-brand-teal text-center">
-            Şifremi unuttum
+          <Link href="/(auth)/forgot-password" asChild>
+            <Text className="text-brand-teal text-center">Şifremi unuttum</Text>
           </Link>
 
           <View className="flex-row justify-center gap-1 mt-4">
             <Text className="text-slate-500">Hesabın yok mu?</Text>
-            <Link href="/(auth)/register" className="text-brand-teal font-semibold">
-              Kayıt ol
+            <Link href="/(auth)/register" asChild>
+              <Text className="text-brand-teal font-semibold">Kayıt ol</Text>
             </Link>
           </View>
         </View>

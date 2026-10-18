@@ -125,8 +125,8 @@ export default function RegisterScreen() {
 
           <View className="flex-row justify-center gap-1 mt-2">
             <Text className="text-slate-500">Zaten hesabın var mı?</Text>
-            <Link href="/(auth)/login" className="text-brand-teal font-semibold">
-              Giriş yap
+            <Link href="/(auth)/login" asChild>
+              <Text className="text-brand-teal font-semibold">Giriş yap</Text>
             </Link>
           </View>
         </View>

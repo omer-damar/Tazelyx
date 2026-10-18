@@ -40,8 +40,16 @@ export function AuthBackground({ children }: PropsWithChildren) {
             <BlurView
               intensity={35}
               tint="light"
-              className="overflow-hidden rounded-[28px] px-6 py-8"
-              style={{ backgroundColor: "rgba(255,255,255,0.06)" }}>
+              // className SDK 57'de BlurView üzerinde uygulanmıyor (köşe yuvarlama
+              // ve iç boşluk kayboluyordu) — bu yüzden düz style.
+              style={{
+                overflow: "hidden",
+                borderRadius: 28,
+                borderCurve: "continuous",
+                paddingHorizontal: 24,
+                paddingVertical: 32,
+                backgroundColor: "rgba(255,255,255,0.06)",
+              }}>
               {children}
             </BlurView>
           </KeyboardAvoidingView>
