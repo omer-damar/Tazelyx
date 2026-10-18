@@ -88,6 +88,28 @@ describe("auth flow (register -> verify -> login)", () => {
     expect(afterVerify.body.token).toEqual(expect.any(String));
   });
 
+  it("rolls the account back when the verification mail cannot be sent", async () => {
+    const { sendVerificationEmail } = require("../../services/email");
+    const email = "smtp-down@test.com";
+    sendVerificationEmail.mockRejectedValueOnce(new Error("SMTP unreachable"));
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    const failed = await request(app)
+      .post("/api/auth/register")
+      .send({ email, password: "password123", name: "Kullanıcı" });
+    expect(failed.status).toBe(503);
+    expect(await User.countDocuments({ email })).toBe(0);
+
+    // SMTP düzelince aynı e-postayla kayıt olabilmeli (409 almamalı).
+    const retry = await request(app)
+      .post("/api/auth/register")
+      .send({ email, password: "password123", name: "Kullanıcı" });
+    expect(retry.status).toBe(201);
+    expect(await User.countDocuments({ email })).toBe(1);
+
+    errorSpy.mockRestore();
+  });
+
   it("rejects a request to a protected route with no token", async () => {
     const res = await request(app).get("/api/products");
     expect(res.status).toBe(401);

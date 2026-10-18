@@ -74,7 +74,20 @@ router.post("/register", authRateLimiter, async (req, res) => {
       emailVerificationExpires: new Date(Date.now() + config.EMAIL_TOKEN_EXPIRES_MS),
     });
 
-    await sendVerificationEmail(user.email, rawToken);
+    try {
+      await sendVerificationEmail(user.email, rawToken);
+    } catch (mailError) {
+      // Mail gitmediyse kullanıcı onay bağlantısını hiç alamaz; hesabı olduğu
+      // gibi bırakırsak hem giriş yapamaz hem de aynı e-postayla tekrar kayıt
+      // olamaz (409). Bu yüzden az önce açtığımız hesabı geri alıyoruz ki
+      // kullanıcı SMTP düzelince baştan deneyebilsin.
+      await User.deleteOne({ _id: user._id });
+      console.error("Onay e-postası gönderilemedi, kayıt geri alındı:", safeErrorDetail(mailError));
+      return res.status(503).json({
+        message:
+          "Onay e-postası şu an gönderilemedi, hesap oluşturulmadı. Lütfen biraz sonra tekrar dene.",
+      });
+    }
 
     // ÖNEMLİ: Giriş e-posta onaylanmadan yapılamadığı için burada JWT
     // dönmüyoruz — dönsek bile kullanıcı login'e kadar hiçbir işe
