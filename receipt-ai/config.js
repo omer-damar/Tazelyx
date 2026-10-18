@@ -24,16 +24,23 @@ const AI_PROVIDER_PRESETS = {
     // uç noktada gerçekten 404 dönüyorlar (canlı test edilip doğrulandı,
     // 2026-08-17). Buradaki 4 model, gerçekten çalıştığı doğrudan API
     // çağrısıyla test edilmiş modeller.
+    //
+    // SIRA, kalite/yenilik değil ÖLÇÜLEN hız ve kararlılığa göre (2026-10-18,
+    // gerçek tarif isteği, reasoning_effort=low, 3'er tur): 3.6 → 3.7-5.2 sn,
+    // 3.5 → 5.2-6.6 sn, lite → 2.6-2.8 sn, hepsinin 3/3 tarifi kilerde-olmayan-
+    // malzeme filtresinden geçti. "gemini-flash-latest" (şu an 3.7) ise 13-33 sn
+    // arasında oynadı ve sunucuda 45 sn'lik zaman aşımına düştü — en yeni model
+    // bu iş için en yavaş ve en güvenilmezi, bu yüzden son çare olarak sonda.
     modelChain: process.env.AI_MODEL
       ? [process.env.AI_MODEL]
-      : ["gemini-flash-latest", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-lite-latest"],
+      : ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-lite-latest", "gemini-flash-latest"],
     // Gemini'nin yeni modelleri yanıt vermeden önce uzun bir "düşünme"
     // aşaması yapıyor. Gerçek tarif isteğiyle ölçüldü (2026-10-18, 10 ürünlük
     // kiler): gemini-flash-latest varsayılan ayarlarla 31 sn / 62 sn / iki
     // kez 90 sn'lik zaman aşımı verdi — "bir çalışıp bir çalışmama"
-    // şikayetinin asıl kaynağı buydu. reasoning_effort="low" ile aynı model
-    // ~9 sn'de, filtreden geçen 3/3 tarifle yanıt veriyor; zincirdeki dört
-    // model de bu parametreyi kabul ediyor (tek tek doğrulandı). .env >
+    // şikayetinin asıl kaynağı buydu. reasoning_effort="low" bunu belirgin
+    // biçimde kısaltıyor (3.6/3.5/lite için 3-7 sn); zincirdeki dört model de
+    // parametreyi kabul ediyor (tek tek doğrulandı). .env >
     // AI_REASONING_EFFORT ile değiştirilebilir ("none" de çalışıyor).
     extraParams: { reasoning_effort: process.env.AI_REASONING_EFFORT || "low" },
   },
