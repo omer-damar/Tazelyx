@@ -4,10 +4,14 @@ import { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 
 import { AuthBackground } from "@/components/AuthBackground";
+import { useAuth } from "@/context/AuthContext";
 import { ApiError, resetPassword } from "@/lib/api";
 
 export default function ResetPasswordScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
+  const { token: sessionToken } = useAuth();
+  // Oturum açıksa (auth) grubu guard'lı: girişe değil ana ekrana dön.
+  const backTarget = sessionToken ? "/" : "/(auth)/login";
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -67,7 +71,7 @@ export default function ResetPasswordScreen() {
             <>
               <Text className="text-slate-600 text-center leading-6">{successMessage}</Text>
               <Pressable
-                onPress={() => router.replace("/(auth)/login")}
+                onPress={() => router.replace(backTarget)}
                 className="bg-brand-green rounded-xl py-4 items-center mt-2 active:opacity-80">
                 <Text className="text-white text-base font-semibold">Girişe dön</Text>
               </Pressable>
@@ -122,7 +126,7 @@ export default function ResetPasswordScreen() {
               </Pressable>
 
               <Pressable
-                onPress={() => router.replace("/(auth)/login")}
+                onPress={() => router.replace(backTarget)}
                 className="rounded-xl py-4 items-center">
                 <Text className="text-slate-500">Girişe dön</Text>
               </Pressable>

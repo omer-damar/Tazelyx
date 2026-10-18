@@ -66,6 +66,10 @@ function RootNavigator() {
       <Stack.Protected guard={!token}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
+
+      {/* Mail bağlantısı (deep link) oturum açıkken de bu ekrana inebilmeli;
+          (auth) grubunda olsaydı guard onu ana ekrana yönlendirirdi. */}
+      <Stack.Screen name="reset-password" />
     </Stack>
   );
 }
