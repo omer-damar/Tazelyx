@@ -27,16 +27,29 @@ const AI_PROVIDER_PRESETS = {
     modelChain: process.env.AI_MODEL
       ? [process.env.AI_MODEL]
       : ["gemini-flash-latest", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-lite-latest"],
+    // Gemini'nin yeni modelleri yanıt vermeden önce uzun bir "düşünme"
+    // aşaması yapıyor. Gerçek tarif isteğiyle ölçüldü (2026-10-18, 10 ürünlük
+    // kiler): gemini-flash-latest varsayılan ayarlarla 31 sn / 62 sn / iki
+    // kez 90 sn'lik zaman aşımı verdi — "bir çalışıp bir çalışmama"
+    // şikayetinin asıl kaynağı buydu. reasoning_effort="low" ile aynı model
+    // ~9 sn'de, filtreden geçen 3/3 tarifle yanıt veriyor; zincirdeki dört
+    // model de bu parametreyi kabul ediyor (tek tek doğrulandı). .env >
+    // AI_REASONING_EFFORT ile değiştirilebilir ("none" de çalışıyor).
+    extraParams: { reasoning_effort: process.env.AI_REASONING_EFFORT || "low" },
   },
   groq: {
     baseURL: "https://api.groq.com/openai/v1",
     apiKey: process.env.GROQ_API_KEY,
     modelChain: [process.env.AI_MODEL || "llama-3.3-70b-versatile"],
+    extraParams: {},
   },
   openai: {
     baseURL: undefined,
     apiKey: process.env.OPENAI_API_KEY,
     modelChain: [process.env.AI_MODEL || "gpt-4.1-mini"],
+    // reasoning_effort sadece OpenAI'ın muhakeme modellerinde geçerli —
+    // gpt-4.1-mini gibi bir modele gönderilirse 400 döner, bu yüzden boş.
+    extraParams: {},
   },
 };
 
@@ -85,6 +98,9 @@ module.exports = {
   // AI_MODEL_CHAIN'i kullanmalı.
   AI_MODEL: modelChain[0],
   AI_MODEL_CHAIN: modelChain,
+  // Her AI isteğine eklenen sağlayıcıya özel ek parametreler (ör. Gemini için
+  // reasoning_effort) — çağıran servisler isteklerine bunu yayıyor.
+  AI_EXTRA_PARAMS: activeAiPreset.extraParams || {},
 
   // E-posta onayı henüz frontend'de karşılık bir ekranı olmadığı için
   // doğrudan backend'in kendi uç noktasına işaret ediyor (GET, tarayıcıda

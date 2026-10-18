@@ -93,6 +93,9 @@ async function parseReceiptWithAi(rawText) {
     // yol açar.
     max_tokens: 8000,
     response_format: { type: "json_object" },
+    // bkz. recipeAi.js ve config.js — Gemini'nin uzun "düşünme" aşamasını
+    // kısaltıyor.
+    ...config.AI_EXTRA_PARAMS,
   });
 
   const content = response.choices[0].message.content;

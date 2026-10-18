@@ -44,6 +44,8 @@ async function estimateShelfLifeDaysWithAi(productName) {
       temperature: 0.1,
       max_tokens: 2000,
       response_format: { type: "json_object" },
+      // bkz. recipeAi.js ve config.js
+      ...config.AI_EXTRA_PARAMS,
     });
 
     const parsed = JSON.parse(response.choices[0].message.content);

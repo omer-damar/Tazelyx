@@ -92,6 +92,9 @@ async function generateRecipeSuggestions(prompt) {
     // yol açar.
     max_tokens: 8000,
     response_format: { type: "json_object" },
+    // Sağlayıcıya özel ek parametreler (Gemini için reasoning_effort: "low" —
+    // aksi halde "düşünme" aşaması 30-90+ sn sürebiliyor, bkz. config.js).
+    ...config.AI_EXTRA_PARAMS,
   });
 
   const content = response.choices[0].message.content;
