@@ -46,9 +46,19 @@ const AI_REQUEST_TIMEOUT_MS = 90000;
 
 async function apiRequest<T>(
   path: string,
-  options: { method?: string; body?: unknown; token?: string; timeoutMs?: number } = {}
+  options: {
+    method?: string;
+    body?: unknown;
+    // multipart/form-data gövdesi (fiş yükleme). Verilirse JSON yerine bu
+    // gönderilir ve Content-Type başlığı BİLEREK eklenmez: fetch, çok parçalı
+    // gövde için gereken "boundary" değerini kendisi üretip ekler; elle
+    // application/json yazmak isteği bozar.
+    formData?: FormData;
+    token?: string;
+    timeoutMs?: number;
+  } = {}
 ): Promise<T> {
-  const { method = "GET", body, token, timeoutMs = REQUEST_TIMEOUT_MS } = options;
+  const { method = "GET", body, formData, token, timeoutMs = REQUEST_TIMEOUT_MS } = options;
 
   // AbortSignal.timeout() bir statik factory — Hermes'in bazı sürümlerinde
   // henüz yok, ve varsa/yoksa Jest (Node üzerinde çalışıyor, orada zaten var)
@@ -62,10 +72,10 @@ async function apiRequest<T>(
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: {
-        "Content-Type": "application/json",
+        ...(formData ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: formData ?? (body ? JSON.stringify(body) : undefined),
       signal: controller.signal,
     });
   } catch (error) {
@@ -267,19 +277,15 @@ export async function uploadReceipt(
     type: file.mimeType,
   } as unknown as Blob);
 
-  const response = await fetch(`${API_BASE_URL}/upload`, {
+  // Fiş yükleme de ortak apiRequest yolundan geçer: OCR + yapay zekâ ayrıştırma
+  // (zincirde birden fazla model denenebilir) uzun sürebildiği için AI
+  // zaman aşımı (90 sn) kullanılır; 401 gelirse oturum sonlandırılır.
+  return apiRequest<UploadReceiptResult>("/upload", {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData,
+    token,
+    formData,
+    timeoutMs: AI_REQUEST_TIMEOUT_MS,
   });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new ApiError(data.message || "Fiş yüklenirken bir şeyler ters gitti.", response.status);
-  }
-
-  return data as UploadReceiptResult;
 }
 
 export type UploadedReceiptRecord = {
