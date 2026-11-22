@@ -29,6 +29,7 @@ const app = require("../../app");
 const User = require("../../models/User");
 const Product = require("../../models/Product");
 const ShoppingList = require("../../models/ShoppingList");
+const ConsumptionLog = require("../../models/ConsumptionLog");
 
 let mongoServer;
 
@@ -108,6 +109,35 @@ describe("auth flow (register -> verify -> login)", () => {
     expect(await User.countDocuments({ email })).toBe(1);
 
     errorSpy.mockRestore();
+  });
+
+  it("rejects a still-unexpired token once its account has been deleted", async () => {
+    const { token, userId } = await registerVerifiedAndLogin("deleted@test.com");
+
+    await request(app)
+      .delete("/api/auth/account")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+
+    // Belirtecin imzası ve süresi hâlâ geçerli — ama sahibi artık yok.
+    const list = await request(app).get("/api/products").set("Authorization", `Bearer ${token}`);
+    expect(list.status).toBe(401);
+
+    const create = await request(app)
+      .post("/api/products")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Süt", quantity: 1, unit: "lt" });
+    expect(create.status).toBe(401);
+    // Sahipsiz (orphan) kayıt oluşmamış olmalı.
+    expect(await Product.countDocuments({ userId })).toBe(0);
+  });
+
+  it("rejects a validly signed token whose userId is not an ObjectId", async () => {
+    const { signToken } = require("../../services/auth");
+    const res = await request(app)
+      .get("/api/products")
+      .set("Authorization", `Bearer ${signToken("not-an-object-id")}`);
+    expect(res.status).toBe(401);
   });
 
   it("rejects a request to a protected route with no token", async () => {
@@ -262,5 +292,20 @@ describe("ownership boundary: user A cannot read, modify, or delete user B's dat
     const remainingListItems = await ShoppingList.find({});
     expect(remainingListItems).toHaveLength(1);
     expect(remainingListItems[0].userId.toString()).toBe(userB.userId);
+  });
+});
+
+describe("indexes: every per-user collection is indexed by userId", () => {
+  // Her sorgu userId ile başladığı için indeksin ilk alanı userId olmalı
+  // (bkz. rapor Bölüm 4.1.3 — indeks eksikliği daha önce açık bir bulguydu).
+  it.each([
+    ["Product", Product],
+    ["ConsumptionLog", ConsumptionLog],
+    ["ShoppingList", ShoppingList],
+  ])("%s has an index whose first key is userId", async (_name, Model) => {
+    await Model.init(); // indeks oluşturma tamamlanana kadar bekle
+    const indexes = await Model.collection.indexes();
+    const leadsWithUserId = indexes.some((index) => Object.keys(index.key)[0] === "userId");
+    expect(leadsWithUserId).toBe(true);
   });
 });

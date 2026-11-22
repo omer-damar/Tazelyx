@@ -51,4 +51,10 @@ const productSchema = new mongoose.Schema(
   }
 );
 
+// Her sorgu önce userId ile (kullanıcı yalıtımı) daraltıyor; yaklaşan SKT,
+// tarif ve panel sorguları ek olarak effectiveExpireDate üzerinde aralık/
+// sıralama kullanıyor. Soldaki userId öneki, düz "kullanıcının ürünleri" ve
+// isme göre gruplama sorgularını da karşılıyor.
+productSchema.index({ userId: 1, effectiveExpireDate: 1 });
+
 module.exports = mongoose.model("Product", productSchema);

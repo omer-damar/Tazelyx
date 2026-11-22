@@ -37,4 +37,9 @@ const shoppingListItemSchema = new mongoose.Schema(
   }
 );
 
+// Liste, kullanıcıya göre filtrelenip { isChecked: 1, createdAt: -1 } ile
+// sıralanıyor; "henüz alınmamış" kalem aramaları (tahmin, mükerrer kontrolü)
+// da aynı önekten yararlanıyor.
+shoppingListItemSchema.index({ userId: 1, isChecked: 1, createdAt: -1 });
+
 module.exports = mongoose.model("ShoppingList", shoppingListItemSchema);

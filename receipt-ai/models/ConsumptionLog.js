@@ -40,4 +40,9 @@ const consumptionLogSchema = new mongoose.Schema(
   }
 );
 
+// Kayıt listesi ve İsraf Skoru sorguları userId'ye göre filtreleyip
+// createdAt ile sıralıyor / aralık uyguluyor; tüketim tahmini de aynı
+// userId önekini kullanıyor.
+consumptionLogSchema.index({ userId: 1, createdAt: -1 });
+
 module.exports = mongoose.model("ConsumptionLog", consumptionLogSchema);
