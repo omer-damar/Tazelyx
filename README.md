@@ -208,7 +208,7 @@ akilli-kiler/
 ## Kurulum
 
 ### Gereksinimler
-- Node.js 20.19+ (React Native 0.86 ve Mongoose 9 için gerekli)
+- Node.js 22.13+ (Expo SDK 57'nin alt sınırı; yalnızca sunucu için Mongoose 9 en az 20.19 ister)
 - MongoDB (yerel veya Atlas)
 - Bir Google Cloud Vision servis hesabı anahtarı (fiş OCR için)
 - Bir Gemini API anahtarı (AI destekli özellikler için)
