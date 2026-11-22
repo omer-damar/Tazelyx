@@ -23,7 +23,7 @@ const TAB_CONFIG: Record<string, { name: IconName; focusedName: IconName; label:
 // metni kesiyor. Bunun yerine tab bar tamamen burada, elle çiziliyor —
 // gizli bir iç kısıtlamaya bağımlı değil, düzen tamamen bu bileşenin
 // kontrolünde.
-function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -57,9 +57,12 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         if (!config) return null;
 
         function onPress() {
-          const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+          // SDK 58 (React Navigation 8): tab bar artık `navigation` değil
+          // `emitter` + `navigateToTab` alıyor — kütüphanenin kendi
+          // BottomTabBar'ının onPress'iyle aynı akış.
+          const event = emitter.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
           if (!focused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
+            navigateToTab(route.key);
           }
         }
 

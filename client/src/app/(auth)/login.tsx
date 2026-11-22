@@ -1,7 +1,14 @@
 import { Image } from "expo-image";
 import { Link, router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  TextInput,
+  type TextInputInstance,
+  View,
+} from "react-native";
 
 import { AuthBackground } from "@/components/AuthBackground";
 import { useAuth } from "@/context/AuthContext";
@@ -15,7 +22,7 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [needsVerification, setNeedsVerification] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const passwordInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInputInstance>(null);
 
   // Bu ekrandan ayrılınca (başarılı girişten sonra ya da kayıt/şifremi
   // unuttum'a geçilince) mesajı temizle — sonraki normal ziyaretlerde

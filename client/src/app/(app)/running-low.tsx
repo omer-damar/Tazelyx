@@ -127,7 +127,7 @@ export default function RunningLowScreen() {
               <Text className="text-ink-muted dark:text-slate-400 text-sm mb-3">
                 Geçmiş tüketim hızına göre bu ürünlerin yakında tükeneceğini tahmin ediyoruz.
               </Text>
-            ) : null
+            ) : undefined
           }
           ListEmptyComponent={
             <EmptyState

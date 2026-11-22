@@ -1,7 +1,14 @@
 import { Image } from "expo-image";
 import { Link, router } from "expo-router";
 import { useRef, useState } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  TextInput,
+  type TextInputInstance,
+  View,
+} from "react-native";
 
 import { AuthBackground } from "@/components/AuthBackground";
 import { ApiError, registerUser } from "@/lib/api";
@@ -14,8 +21,8 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const emailInputRef = useRef<TextInput>(null);
-  const passwordInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInputInstance>(null);
+  const passwordInputRef = useRef<TextInputInstance>(null);
 
   async function handleRegister() {
     setErrorMessage(null);

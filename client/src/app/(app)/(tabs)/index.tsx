@@ -14,7 +14,9 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Swipeable } from "react-native-gesture-handler";
+// gesture-handler 3'te eski `Swipeable` kaldırıldı; aynı props/close() API'sine
+// sahip Reanimated tabanlı karşılığı kullanılıyor.
+import Swipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/AppHeader";
@@ -50,7 +52,7 @@ function ProductRow({
   product: Product;
   onSwipeAction: (product: Product, reason: "consumed" | "expired") => void;
 }) {
-  const swipeableRef = useRef<Swipeable>(null);
+  const swipeableRef = useRef<SwipeableMethods>(null);
 
   return (
     <Swipeable

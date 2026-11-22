@@ -1,7 +1,14 @@
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  TextInput,
+  type TextInputInstance,
+  View,
+} from "react-native";
 
 import { AuthBackground } from "@/components/AuthBackground";
 import { useAuth } from "@/context/AuthContext";
@@ -18,7 +25,7 @@ export default function ResetPasswordScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const confirmInputRef = useRef<TextInput>(null);
+  const confirmInputRef = useRef<TextInputInstance>(null);
 
   async function handleSubmit() {
     setErrorMessage(null);
