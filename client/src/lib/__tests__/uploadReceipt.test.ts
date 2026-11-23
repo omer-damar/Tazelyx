@@ -7,6 +7,12 @@ import { ApiError, setUnauthorizedHandler, uploadReceipt } from "../api";
 
 const file = { uri: "file:///fis.jpg", name: "fis.jpg", mimeType: "image/jpeg" };
 
+// config.ts Metro adresini expo-constants'tan okur (ESM, Node'da yüklenemez); testte sabit bir adres yeter.
+jest.mock("expo-constants", () => ({
+  __esModule: true,
+  default: { expoConfig: { hostUri: "test-host:8081" } },
+}));
+
 // expo-file-system yerel modül ister; testte baytları sabit dönen bir sahte File yeterli.
 jest.mock("expo-file-system", () => ({
   File: class {
