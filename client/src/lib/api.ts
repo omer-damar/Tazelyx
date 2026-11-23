@@ -1,3 +1,5 @@
+import { File } from "expo-file-system";
+
 import { API_BASE_URL } from "./config";
 
 export class ApiError extends Error {
@@ -262,19 +264,23 @@ export type UploadReceiptResult = {
   parsedProducts: ParsedProduct[];
 };
 
-// Fiş yükleme JSON değil multipart/form-data gönderiyor, bu yüzden
-// apiRequest()'i kullanmıyor — Content-Type'ı fetch'in kendisi (boundary
-// dahil) otomatik ayarlaması gerekiyor, elle "application/json" set etmek
-// isteği bozar.
+// Fiş yükleme JSON değil multipart/form-data gönderiyor: apiRequest() gövdeyi
+// FormData olarak alır ve Content-Type'ı bilerek eklemez (boundary'yi fetch
+// üretir; elle "application/json" yazmak isteği bozar).
 export async function uploadReceipt(
   token: string,
   file: { uri: string; name: string; mimeType: string }
 ) {
+  // SDK 58'de global fetch (expo/fetch) çok parçalı gövdede React Native'in eski
+  // `{ uri, name, type }` dosya nesnesini kabul etmiyor ("Unsupported
+  // FormDataPart implementation"); bayt okuyabilen (bytes()) Blob benzeri bir
+  // parça gerekiyor. Baytları expo-file-system'in File sınıfı okur; dosya adı ve
+  // MIME türünü (sunucudaki tür denetimi için) biz veriyoruz.
   const formData = new FormData();
   formData.append("receipt", {
-    uri: file.uri,
     name: file.name,
     type: file.mimeType,
+    bytes: () => new File(file.uri).bytes(),
   } as unknown as Blob);
 
   // Fiş yükleme de ortak apiRequest yolundan geçer: OCR + yapay zekâ ayrıştırma

@@ -7,17 +7,39 @@ import { ApiError, setUnauthorizedHandler, uploadReceipt } from "../api";
 
 const file = { uri: "file:///fis.jpg", name: "fis.jpg", mimeType: "image/jpeg" };
 
+// expo-file-system yerel modül ister; testte baytları sabit dönen bir sahte File yeterli.
+jest.mock("expo-file-system", () => ({
+  File: class {
+    constructor(public uri: string) {}
+    async bytes() {
+      return new Uint8Array([1, 2, 3]);
+    }
+  },
+}));
+
+// Node'un FormData'sı Blob olmayan nesneyi stringe çevirir; eklenen parçayı
+// inceleyebilmek için eklenenleri olduğu gibi tutan sade bir FormData kullanıyoruz.
+class FakeFormData {
+  parts: [string, unknown][] = [];
+  append(key: string, value: unknown) {
+    this.parts.push([key, value]);
+  }
+}
+const realFormData = globalThis.FormData;
+
 type FetchInit = RequestInit & { headers: Record<string, string> };
 const fetchMock = jest.fn();
 
 beforeEach(() => {
   fetchMock.mockReset();
   (globalThis as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+  (globalThis as unknown as { FormData: unknown }).FormData = FakeFormData;
   setUnauthorizedHandler(null);
 });
 
 afterEach(() => {
   jest.useRealTimers();
+  (globalThis as unknown as { FormData: unknown }).FormData = realFormData;
 });
 
 function jsonResponse(status: number, body: unknown) {
@@ -34,8 +56,21 @@ describe("uploadReceipt", () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, FetchInit];
     expect(url).toMatch(/\/upload$/);
     expect(init.method).toBe("POST");
-    expect(init.body).toBeInstanceOf(FormData);
+    expect(init.body).toBeInstanceOf(FakeFormData);
     expect(init.headers.Authorization).toBe("Bearer tok");
+
+    // SDK 58 regresyonu: expo/fetch eski { uri, name, type } nesnesini reddediyor
+    // ("Unsupported FormDataPart implementation"). Parça bayt okuyabilmeli ve
+    // sunucunun tür denetimi için ad/MIME türünü taşımalı.
+    const [fieldName, part] = (init.body as unknown as FakeFormData).parts[0] as [
+      string,
+      { name: string; type: string; bytes: () => Promise<Uint8Array>; uri?: string },
+    ];
+    expect(fieldName).toBe("receipt");
+    expect(part.name).toBe("fis.jpg");
+    expect(part.type).toBe("image/jpeg");
+    expect(part.uri).toBeUndefined();
+    expect(Array.from(await part.bytes())).toEqual([1, 2, 3]);
     // Content-Type'ı fetch kendisi (boundary ile) üretmeli.
     expect(init.headers["Content-Type"]).toBeUndefined();
   });
