@@ -44,9 +44,12 @@ Bu proje bir bitirme tezi kapsamında geliştirilmiştir.
 ## Özellikler
 
 ### 🔐 Kimlik Doğrulama
-- E-posta/şifre ile kayıt, e-posta onayı (markalı HTML onay sayfası)
+- E-posta/şifre ile kayıt, e-posta onayı: mailde düğme, açılan sayfada "E-postamı onayla"
+  düğmesiyle doğrulama (bağlantıya tıklamak tek başına hesabı onaylamaz)
 - Giriş — kayıtsız e-posta ve yanlış şifre için ayrı, net hata mesajları
-- Şifremi unuttum / şifre sıfırlama (güvenli, süreli token tabanlı akış)
+- Şifremi unuttum / şifre sıfırlama: mailde düğme, tarayıcıda (bilgisayar veya telefon)
+  açılan şifre formu; token adreste `#` parçasında taşınır, sunucu kayıtlarına girmez ve
+  sayfa açılınca adres çubuğundan silinir (süreli, tek kullanımlık, veritabanında özetli)
 - JWT tabanlı oturum (7 gün geçerli); süresi dolduğunda kullanıcı otomatik olarak
   giriş ekranına yönlendirilir ve nedeni açıkça belirtilir
 - Hesap silme — kullanıcıya ait tüm veriler (ürünler, tüketim geçmişi, fiş kayıtları)
@@ -156,7 +159,7 @@ Projede karşılaşılan ve bilinçli olarak çözülen bazı mühendislik probl
 ### İstemci (`client/`)
 | Katman | Teknoloji |
 |---|---|
-| Çerçeve | React Native 0.86, Expo SDK 57 |
+| Çerçeve | React Native 0.88, Expo SDK 58 |
 | Dil | TypeScript |
 | Yönlendirme | Expo Router (dosya tabanlı) |
 | Stil | NativeWind (Tailwind CSS for React Native) |
@@ -208,12 +211,14 @@ akilli-kiler/
 ## Kurulum
 
 ### Gereksinimler
-- Node.js 22.13+ (Expo SDK 57'nin alt sınırı; yalnızca sunucu için Mongoose 9 en az 20.19 ister)
+- Node.js 22.13+ (Expo SDK 58'in alt sınırı; yalnızca sunucu için Mongoose 9 en az 20.19 ister)
 - MongoDB (yerel veya Atlas)
 - Bir Google Cloud Vision servis hesabı anahtarı (fiş OCR için)
 - Bir Gemini API anahtarı (AI destekli özellikler için)
 - Fiziksel bir telefonda test için: [Expo Go](https://expo.dev/go) — mağazadaki
-  Expo Go yalnızca güncel SDK'yı açar; bu proje **SDK 57** ile uyumludur
+  Expo Go yalnızca güncel SDK'yı açar; bu proje **SDK 58** ile uyumludur. iPhone'da
+  Expo Go'nun kendiliğinden yeni bir SDK'ya güncellenmesi projeyi açılmaz hâle getirebilir;
+  sunumdan önce otomatik güncellemeyi kapatmanız önerilir
 
 ### Sunucu (`receipt-ai/`)
 
@@ -278,7 +283,7 @@ Bearer <token>` başlığı gerektirir.
 
 | Grup | Örnek uç noktalar |
 |---|---|
-| Kimlik doğrulama | `POST /api/auth/register`, `/login`, `/forgot-password`, `/reset-password`, `DELETE /api/auth/account` |
+| Kimlik doğrulama | `POST /api/auth/register`, `/login`, `/forgot-password`, `GET`+`POST /verify-email` (onay sayfası + doğrulama), `GET`+`POST /reset-password` (şifre formu + güncelleme), `DELETE /api/auth/account` |
 | Ürünler | `GET/POST /api/products`, `GET /api/products/expiring-soon`, `POST /api/products/bulk` |
 | Fiş yükleme | `POST /api/upload`, `GET /api/upload/history` |
 | Tarifler | `GET /api/recipes/suggest` |
