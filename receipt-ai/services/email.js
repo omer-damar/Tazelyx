@@ -30,8 +30,19 @@ const LOGO_ATTACHMENT = {
 
 const LOGO_HEADER_HTML = `<img src="cid:${LOGO_CID}" alt="${config.EMAIL_SENDER_NAME}" style="height:40px;margin-bottom:16px;" />`;
 
+// Bağlantı mailde çıplak adres olarak DEĞİL, düğme olarak gösterilir (ekran
+// görüntüsünde / paylaşımda token görünmesin). Token adresin "#token=" parçasında
+// (fragment) taşınır: sunucuya, erişim kayıtlarına ve Referer'a hiç gitmez;
+// açılan sayfa onu okuyup adres çubuğundan siler (bkz. services/htmlPage.js).
+const BUTTON_STYLE =
+  "display:inline-block;background:#047857;color:#ffffff;padding:13px 26px;border-radius:12px;text-decoration:none;font-weight:600;font-family:Arial,Helvetica,sans-serif;font-size:15px;";
+
+function actionButton(url, label) {
+  return `<p style="margin:22px 0;"><a href="${url}" style="${BUTTON_STYLE}">${label}</a></p>`;
+}
+
 async function sendVerificationEmail(toEmail, token) {
-  const verifyUrl = `${config.APP_BASE_URL}/api/auth/verify-email?token=${token}`;
+  const verifyUrl = `${config.APP_BASE_URL}/api/auth/verify-email#token=${token}`;
 
   await transporter.sendMail({
     from: `"${config.EMAIL_SENDER_NAME}" <${config.EMAIL_USER}>`,
@@ -41,20 +52,19 @@ async function sendVerificationEmail(toEmail, token) {
     html: `
       ${LOGO_HEADER_HTML}
       <p>Merhaba,</p>
-      <p>${config.EMAIL_SENDER_NAME} hesabını aktifleştirmek için aşağıdaki bağlantıya tıkla:</p>
-      <p><a href="${verifyUrl}">${verifyUrl}</a></p>
-      <p>Bu bağlantı 24 saat geçerlidir.</p>
+      <p>${config.EMAIL_SENDER_NAME} hesabını aktifleştirmek için aşağıdaki düğmeye tıkla:</p>
+      ${actionButton(verifyUrl, "E-postamı onayla")}
+      <p>Bu bağlantı 24 saat geçerlidir. Bu hesabı sen açmadıysan bu e-postayı yok sayabilirsin.</p>
     `,
   });
 }
 
 async function sendPasswordResetEmail(toEmail, token) {
-  // Link doğrudan "exp://" şemasına değil, backend'in http(s) uç noktasına
-  // işaret eder — e-posta istemcileri (Outlook/Gmail/Mail) "exp://" gibi
-  // özel şemaları linklemez, sadece düz metin gösterir. Backend'deki GET
-  // /reset-password (routes/auth.js) bu isteği alıp asıl hedefe (Expo
-  // Go'daki reset-password ekranı) 302 ile yönlendirir.
-  const resetUrl = `${config.APP_BASE_URL}/api/auth/reset-password?token=${token}`;
+  // Link "exp://" şemasına değil, backend'in http(s) uç noktasına işaret eder —
+  // e-posta istemcileri (Outlook/Gmail/Mail) "exp://" gibi özel şemaları
+  // linklemez. Açılan sayfa (GET /reset-password) tarayıcıda bir şifre formu
+  // gösterir; telefonda uygulamayı tercih edenler için derin bağlantı da sunar.
+  const resetUrl = `${config.APP_BASE_URL}/api/auth/reset-password#token=${token}`;
 
   await transporter.sendMail({
     from: `"${config.EMAIL_SENDER_NAME}" <${config.EMAIL_USER}>`,
@@ -64,8 +74,8 @@ async function sendPasswordResetEmail(toEmail, token) {
     html: `
       ${LOGO_HEADER_HTML}
       <p>Merhaba,</p>
-      <p>Şifreni sıfırlamak için aşağıdaki bağlantıyı kullan:</p>
-      <p><a href="${resetUrl}">${resetUrl}</a></p>
+      <p>Şifreni sıfırlamak için aşağıdaki düğmeyi kullan:</p>
+      ${actionButton(resetUrl, "Şifremi sıfırla")}
       <p>Bu bağlantı 1 saat geçerlidir. Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin.</p>
     `,
   });

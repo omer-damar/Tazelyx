@@ -13,7 +13,7 @@ const {
   hashUrlToken,
 } = require("../services/auth");
 const { sendVerificationEmail, sendPasswordResetEmail } = require("../services/email");
-const { renderBrandedPage } = require("../services/htmlPage");
+const { renderResetPasswordPage, renderVerifyEmailPage } = require("../services/htmlPage");
 const { requireAuth } = require("../middleware/auth");
 const { safeErrorDetail } = require("../utils/errorResponse");
 const config = require("../config");
@@ -104,17 +104,20 @@ router.post("/register", authRateLimiter, async (req, res) => {
   }
 });
 
-router.get("/verify-email", async (req, res) => {
-  try {
-    const { token } = req.query;
+// E-postadaki onay bağlantısı bu sayfayı açar; doğrulamanın kendisi sayfadaki
+// düğmeyle (POST /verify-email) yapılır — e-posta güvenlik tarayıcılarının
+// bağlantıyı önceden açması hesabı onaylamasın, token da sunucu kayıtlarında
+// ve adres çubuğunda görünmesin diye (bkz. services/htmlPage.js).
+router.get("/verify-email", (req, res) => {
+  renderVerifyEmailPage(res);
+});
 
-    if (!token) {
-      return renderBrandedPage(res, {
-        statusCode: 400,
-        tone: "error",
-        heading: "Geçersiz bağlantı",
-        message: "Bu onay bağlantısı eksik veya bozuk görünüyor.",
-      });
+router.post("/verify-email", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (typeof token !== "string" || !token) {
+      return res.status(400).json({ message: "token alanı gerekli." });
     }
 
     const hashedToken = hashUrlToken(token);
@@ -124,10 +127,7 @@ router.get("/verify-email", async (req, res) => {
     });
 
     if (!user) {
-      return renderBrandedPage(res, {
-        statusCode: 400,
-        tone: "error",
-        heading: "Bağlantının süresi dolmuş",
+      return res.status(400).json({
         message:
           "Onay bağlantısı geçersiz veya süresi dolmuş. Uygulamadan tekrar onay e-postası isteyebilirsin.",
       });
@@ -138,17 +138,11 @@ router.get("/verify-email", async (req, res) => {
     user.emailVerificationExpires = null;
     await user.save();
 
-    renderBrandedPage(res, {
-      tone: "success",
-      heading: "E-postan onaylandı!",
-      message: "Artık Tazelyx uygulamasına dönüp giriş yapabilirsin.",
-    });
+    res.json({ message: "E-postan onaylandı! Artık uygulamaya giriş yapabilirsin." });
   } catch (error) {
-    renderBrandedPage(res, {
-      statusCode: 500,
-      tone: "error",
-      heading: "Bir şeyler ters gitti",
-      message: "E-posta onayı sırasında beklenmeyen bir hata oluştu.",
+    res.status(500).json({
+      message: "E-posta onayı sırasında hata oluştu.",
+      error: safeErrorDetail(error),
     });
   }
 });
@@ -266,24 +260,14 @@ router.post("/forgot-password", authRateLimiter, async (req, res) => {
   }
 });
 
-// E-postadaki şifre sıfırlama linki buraya (http/https, e-posta istemcilerinin
-// hepsinde tıklanabilir) işaret ediyor; burası da gerçek formun olduğu Expo Go
-// uygulamasına (exp:// özel şema, e-posta istemcileri bunu doğrudan linklemiyor)
-// yönlendiriyor. Token'ın kendisini burada DOĞRULAMIYORUZ — asıl doğrulama
-// POST /reset-password'de yapılıyor, burası sadece bir yönlendirme katmanı.
+// E-postadaki şifre sıfırlama bağlantısı bu sayfayı açar: TARAYICIDA çalışan bir
+// şifre formu (bilgisayarda da telefonda da, Expo Go olmadan); uygulamada açmak
+// isteyenler için aynı sayfada derin bağlantı da var. Token "#token=" ile
+// taşındığından sunucuya hiç ulaşmaz — bu yüzden burada token'a BAKMIYORUZ ve
+// sayfaya hiçbir şey yansıtmıyoruz; sayfanın JS'i token'ı okuyup POST
+// /reset-password'e gönderir, asıl doğrulama orada yapılır.
 router.get("/reset-password", (req, res) => {
-  const { token } = req.query;
-
-  if (!token) {
-    return renderBrandedPage(res, {
-      statusCode: 400,
-      tone: "error",
-      heading: "Geçersiz bağlantı",
-      message: "Bu şifre sıfırlama bağlantısı eksik veya bozuk görünüyor.",
-    });
-  }
-
-  res.redirect(`${config.EXPO_APP_URL}/--/reset-password?token=${token}`);
+  renderResetPasswordPage(res);
 });
 
 router.post("/reset-password", async (req, res) => {

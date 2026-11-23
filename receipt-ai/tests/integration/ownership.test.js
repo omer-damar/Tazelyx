@@ -309,3 +309,124 @@ describe("indexes: every per-user collection is indexed by userId", () => {
     expect(leadsWithUserId).toBe(true);
   });
 });
+
+describe("password reset: browser form and flow", () => {
+  const { generateUrlToken } = require("../../services/auth");
+
+  async function userWithResetToken(email, password = "oldpassword1") {
+    await request(app)
+      .post("/api/auth/register")
+      .send({ email, password, name: "Reset" })
+      .expect(201);
+    const { rawToken, hashedToken } = generateUrlToken();
+    await User.updateOne(
+      { email },
+      {
+        emailVerified: true,
+        passwordResetToken: hashedToken,
+        passwordResetExpires: new Date(Date.now() + 60 * 60 * 1000),
+      }
+    );
+    return rawToken;
+  }
+
+  it("serves the reset form as a static page that reads the token from the URL fragment", async () => {
+    const res = await request(app).get("/api/auth/reset-password").redirects(0);
+
+    expect(res.status).toBe(200); // yönlendirme yok
+    expect(res.headers["content-type"]).toMatch(/html/);
+    expect(res.headers["cache-control"]).toMatch(/no-store/);
+    expect(res.headers["referrer-policy"]).toBe("no-referrer");
+    expect(res.text).toContain('id="f"'); // form
+    expect(res.text).toContain("location.hash"); // token fragment'tan okunuyor
+    expect(res.text).toContain("history.replaceState"); // ve adres çubuğundan siliniyor
+    expect(res.text).toContain("exp://"); // uygulamada aç bağlantısı da duruyor
+  });
+
+  it("never echoes a token from the query string into the page", async () => {
+    const evil = "\"><script>alert(1)</script>";
+    const res = await request(app).get("/api/auth/reset-password").query({ token: evil });
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain("alert(1)");
+
+    const { rawToken } = generateUrlToken();
+    const legit = await request(app).get("/api/auth/reset-password").query({ token: rawToken });
+    expect(legit.text).not.toContain(rawToken); // sunucu token'ı sayfaya basmaz
+  });
+
+  it("changes the password with a valid token, and the token works only once", async () => {
+    const email = "resetflow@test.com";
+    const rawToken = await userWithResetToken(email);
+
+    await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token: rawToken, newPassword: "brandnewpass1" })
+      .expect(200);
+
+    await request(app).post("/api/auth/login").send({ email, password: "oldpassword1" }).expect(401);
+    await request(app).post("/api/auth/login").send({ email, password: "brandnewpass1" }).expect(200);
+
+    const reuse = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ token: rawToken, newPassword: "anotherpass12" });
+    expect(reuse.status).toBe(400);
+  });
+});
+
+describe("email verification: button page and POST", () => {
+  const { generateUrlToken } = require("../../services/auth");
+
+  async function unverifiedUserWithToken(email, expiresInMs = 24 * 60 * 60 * 1000) {
+    await request(app)
+      .post("/api/auth/register")
+      .send({ email, password: "password123", name: "Verify" })
+      .expect(201);
+    const { rawToken, hashedToken } = generateUrlToken();
+    await User.updateOne(
+      { email },
+      { emailVerificationToken: hashedToken, emailVerificationExpires: new Date(Date.now() + expiresInMs) }
+    );
+    return rawToken;
+  }
+
+  it("opening the link does NOT verify the account; it only shows a confirm page", async () => {
+    const email = "verify-scan@test.com";
+    const rawToken = await unverifiedUserWithToken(email);
+
+    // Bir e-posta güvenlik tarayıcısının bağlantıyı (eski ?token= biçimiyle de) önceden açması:
+    const res = await request(app).get("/api/auth/verify-email").query({ token: rawToken });
+    expect(res.status).toBe(200);
+    expect(res.headers["cache-control"]).toMatch(/no-store/);
+    expect(res.text).toContain("E-postamı onayla");
+    expect(res.text).not.toContain(rawToken);
+
+    const user = await User.findOne({ email });
+    expect(user.emailVerified).toBe(false);
+  });
+
+  it("POST with a valid token verifies the account, once", async () => {
+    const email = "verify-ok@test.com";
+    const rawToken = await unverifiedUserWithToken(email);
+
+    await request(app).post("/api/auth/login").send({ email, password: "password123" }).expect(403);
+
+    await request(app).post("/api/auth/verify-email").send({ token: rawToken }).expect(200);
+
+    await request(app).post("/api/auth/login").send({ email, password: "password123" }).expect(200);
+
+    const reuse = await request(app).post("/api/auth/verify-email").send({ token: rawToken });
+    expect(reuse.status).toBe(400);
+  });
+
+  it("rejects an invalid, missing or expired token", async () => {
+    const expiredToken = await unverifiedUserWithToken("verify-expired@test.com", -1000);
+
+    const bad = await request(app).post("/api/auth/verify-email").send({ token: "0".repeat(64) });
+    expect(bad.status).toBe(400);
+    const missing = await request(app).post("/api/auth/verify-email").send({});
+    expect(missing.status).toBe(400);
+    const expired = await request(app).post("/api/auth/verify-email").send({ token: expiredToken });
+    expect(expired.status).toBe(400);
+    expect((await User.findOne({ email: "verify-expired@test.com" })).emailVerified).toBe(false);
+  });
+});
