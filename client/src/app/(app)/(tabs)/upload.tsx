@@ -433,6 +433,8 @@ export default function UploadReceiptScreen() {
             <DateTimePicker
               value={editingItem?.manualExpireDate ?? new Date()}
               mode="date"
+              // Takvim dili telefonun diline bağlı kalmasın: ay/gün adları Türkçe olsun.
+              locale="tr-TR"
               display={Platform.OS === "ios" ? "spinner" : "default"}
               themeVariant={resolvedScheme === "dark" ? "dark" : "light"}
               minimumDate={new Date()}

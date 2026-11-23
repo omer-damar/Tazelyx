@@ -85,11 +85,11 @@ export default function UploadHistoryScreen() {
                 <Ionicons name="receipt-outline" size={16} color="#047857" />
               </View>
               <View className="flex-1">
+                {/* Galeriden seçilen fotoğrafların dosya adı rastgele bir kimlik
+                    (UUID) olduğundan, orijinal ad yerine okunur bir etiket
+                    gösteriyoruz: tarih ve saat. */}
                 <Text className="text-ink dark:text-white font-semibold text-sm" numberOfLines={1}>
-                  {item.originalFilename || "Fiş"}
-                </Text>
-                <Text className="text-ink-muted dark:text-slate-400 text-xs mt-0.5">
-                  {formatDateTime(item.createdAt)}
+                  Fiş – {formatDateTime(item.createdAt)}
                 </Text>
               </View>
             </View>
