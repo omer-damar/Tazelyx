@@ -1,6 +1,12 @@
 import "@/global.css";
 
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import {
+  DarkTheme,
+  DefaultTheme,
+  enableLegacyHeaderAppearance,
+  Stack,
+  ThemeProvider,
+} from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -10,6 +16,14 @@ import { AppThemeProvider, useThemePreference } from "@/context/ThemeContext";
 import { WasteScoreProvider } from "@/context/WasteScoreContext";
 
 SplashScreen.preventAutoHideAsync();
+
+// SDK 58 (expo-router 58) iOS 26+ cihazlarda başlığı varsayılan olarak şeffaf
+// "Liquid Glass" yapıyor: içerik başlığın ALTINDAN başlıyor ve ekranların üst
+// kısmı (ör. İsraf Skoru'ndaki dönem seçici) gizleniyor. Bu çağrı, SDK 57'deki
+// görünümü geri getirir: opak başlık, içerik başlığın altında. Kök layout
+// render olmadan önce çağrılmalı. (Kütüphane bunu ileride kaldıracağını
+// belirtiyor; o zaman her ekrana üst boşluk eklenmesi gerekecek.)
+enableLegacyHeaderAppearance();
 
 export default function RootLayout() {
   return (
